@@ -1,4 +1,22 @@
+# Exports
 exports/
+
+# Virtual environment
+.venv/
+
+# Python
 __pycache__/
-.ipynb_checkpoints/
 *.pyc
+*.pyo
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
