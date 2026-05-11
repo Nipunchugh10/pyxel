@@ -1,5 +1,9 @@
 # 🎨 Pyxel Canvas
+
 ### 100 Stunning 2D & 3D Patterns in a Single Jupyter Notebook
+
+> ⚠️ **This project is currently under active development.**
+> The engine, UI, and architecture are complete. Pattern implementations are being added progressively.
 
 ---
 
@@ -11,11 +15,56 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 
 ---
 
+## Current Status
+
+| Milestone | Status |
+|-----------|--------|
+| Project structure & folder hierarchy | ✅ Complete |
+| Core engine (`BasePattern`, color palettes, export utilities) | ✅ Complete |
+| 100 pattern class stubs registered | ✅ Complete |
+| Interactive UI (dropdowns, controls, render/export buttons) | ✅ Complete |
+| Pattern implementations | 🔧 **0 / 100** — in progress |
+
+---
+
+## Project Architecture
+
+```
+visual_engine/
+│
+├── notebook.ipynb               ← Single entry point — run this
+│
+├── engines/
+│   ├── renderer.py              ← BasePattern ABC (render + get_controls)
+│   ├── color_utils.py           ← 8 preset color palettes + utilities
+│   ├── animation.py             ← Animation loop helpers
+│   └── camera.py                ← 2D viewport (pan, zoom, meshgrid)
+│
+├── patterns/
+│   ├── __init__.py              ← PATTERNS registry (100 entries) + CATEGORIES
+│   ├── fractals.py              ← Geometric & Mathematical (1–20)
+│   ├── nature.py                ← Nature-Inspired (21–40)
+│   ├── abstract.py              ← Abstract & Artistic (41–60)
+│   ├── game2d.py                ← 2D Game-Style (61–70)
+│   ├── objects3d.py             ← 3D Objects & Sculptures (71–90)
+│   └── scientific.py            ← Scientific & Simulation (91–100)
+│
+├── utils/
+│   ├── export.py                ← PNG / GIF / MP4 export functions
+│   └── physics.py               ← Shared physics helpers
+│
+├── assets/                      ← Textures, fonts, static resources
+├── shaders/                     ← GLSL shader files
+└── exports/                     ← Rendered outputs (auto-created)
+```
+
+---
+
 ## Setup Instructions
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/<Nipunchugh10>/pyxel.git
+   git clone https://github.com/Nipunchugh10/pyxel.git
    cd pyxel
    ```
 
@@ -30,10 +79,20 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 
 ---
 
+## How It Works
+
+- Each pattern is a Python class inheriting from `BasePattern`
+- Every class implements `render(**kwargs)` and `get_controls()` 
+- The notebook UI dynamically loads patterns via a lazy-loading cache
+- Universal controls (palette, speed, resolution) + pattern-specific controls
+- Export any render as PNG, GIF, or MP4 with one click
+
+---
+
 ## Pattern Groups
 
 | # | Group | Count |
-|---|---|---|
+|---|-------|-------|
 | 1–20 | Geometric & Mathematical | 20 |
 | 21–40 | Nature-Inspired | 20 |
 | 41–60 | Abstract & Artistic | 20 |
@@ -41,9 +100,8 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | 71–90 | 3D Objects & Sculptures | 20 |
 | 91–100 | Scientific & Simulation | 10 |
 
----
-
-## All 100 Patterns
+<details>
+<summary><b>📋 Full list of all 100 patterns</b></summary>
 
 ### Geometric & Mathematical (1–20)
 1. Mandelbrot Fractal Explorer
@@ -157,11 +215,19 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 99. Fluid Dynamics (SPH)
 100. Quantum Wave Packet
 
+</details>
+
 ---
 
-## Progress
+## Tech Stack
 
-> 🚀 **0 / 100 patterns complete**
+| Category | Libraries |
+|----------|-----------|
+| 2D Graphics | `matplotlib`, `Pillow` |
+| Generative Art | `noise`, `numpy` |
+| Simulations | `scipy` |
+| UI Controls | `ipywidgets` |
+| Fast Math | `numpy`, `numba` |
 
 ---
 
