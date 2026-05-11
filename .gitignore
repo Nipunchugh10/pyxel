@@ -17,6 +17,10 @@ __pycache__/
 .vscode/
 .idea/
 
+# Local-only development files (DO NOT PUSH)
+Plan.md
+SESSION_STATE.md
+
 # OS
 .DS_Store
 Thumbs.db
