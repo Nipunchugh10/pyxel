@@ -5,7 +5,6 @@ Each class is a stub that will be replaced with full implementations during Phas
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import numpy as np
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -28,7 +27,8 @@ class _StubMixin:
         ax.text(0.5, 0.42, "⏳ Coming Soon", ha="center", va="center",
                 fontsize=11, color="#888", style="italic",
                 transform=ax.transAxes)
-        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
         ax.axis("off")
         plt.tight_layout()
         plt.show()
