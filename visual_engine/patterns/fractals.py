@@ -530,9 +530,70 @@ class DragonCurveRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class HilbertCurveRenderer(_StubMixin, BasePattern):
+class HilbertCurveRenderer(BasePattern):
+    """Pattern 9 — Hilbert Curve space-filling curve via index-to-XY mapping."""
     name = "Hilbert Curve"
     group = "Geometric & Mathematical"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=5, min=1, max=8, step=1,
+                              description="Order:"),
+            widgets.FloatSlider(value=1.0, min=0.2, max=3.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def _hilbert_xy(self, order: int) -> np.ndarray:
+        """Return (4^order, 2) array of integer grid coords along the Hilbert path."""
+        n = 1 << order       # 2^order
+        total = n * n
+        coords = np.empty((total, 2), dtype=np.float64)
+        for d in range(total):
+            x = y = 0
+            t = d
+            s = 1
+            while s < n:
+                rx = 1 if (t & 2) else 0
+                ry = 1 if ((t & 1) ^ rx) else 0
+                if ry == 0:
+                    if rx == 1:
+                        x = s - 1 - x
+                        y = s - 1 - y
+                    x, y = y, x
+                x += s * rx
+                y += s * ry
+                t >>= 2
+                s <<= 1
+            coords[d] = (x, y)
+        return coords
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from matplotlib.collections import LineCollection
+        order = int(kwargs.get("order", 5))
+        lw = float(kwargs.get("line_width", 1.0))
+
+        coords = self._hilbert_xy(order)
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)
+        colors = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=lw,
+                            capstyle="round")
+        ax.add_collection(lc)
+
+        n = 1 << order
+        ax.set_xlim(-0.5, n - 0.5)
+        ax.set_ylim(-0.5, n - 0.5)
+        ax.set_aspect("equal")
+        ax.set_title(f"Hilbert Curve — order {order}  ({n}×{n} grid)",
+                     color="#e0e0e0", fontsize=14, fontweight="bold", pad=12)
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
 class LSystemTreeRenderer(_StubMixin, BasePattern):
     name = "L-System Tree"
