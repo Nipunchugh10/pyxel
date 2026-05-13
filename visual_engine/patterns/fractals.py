@@ -373,9 +373,58 @@ class PenroseRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class VoronoiRenderer(_StubMixin, BasePattern):
+class VoronoiRenderer(BasePattern):
+    """Pattern 6 — Voronoi Diagram via KD-tree nearest-neighbour rasterization."""
     name = "Voronoi Diagram"
     group = "Geometric & Mathematical"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=60, min=5, max=200, step=5,
+                              description="Points:"),
+            widgets.Checkbox(value=True, description="Show Points"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from scipy.spatial import cKDTree
+        n_pts = int(kwargs.get("points", 60))
+        show_pts = bool(kwargs.get("show_points", True))
+        seed = int(kwargs.get("seed", 42))
+        res = self._resolve_resolution(resolution)
+        rng = np.random.default_rng(seed)
+
+        pts = rng.random((n_pts, 2))  # seeds in [0, 1]²
+
+        # Build pixel grid and query nearest seed
+        lin = np.linspace(0.0, 1.0, res)
+        gx, gy = np.meshgrid(lin, lin)
+        grid = np.column_stack([gx.ravel(), gy.ravel()])
+        tree = cKDTree(pts)
+        _, nearest = tree.query(grid, k=1)
+        nearest_img = nearest.reshape(res, res)
+
+        colors = ColorUtils.gradient_array(palette, n_pts)  # (n_pts, 3)
+        img = colors[nearest_img]  # (res, res, 3)
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        ax.imshow(img, extent=[0, 1, 0, 1], origin="lower", aspect="equal",
+                  interpolation="nearest")
+
+        if show_pts:
+            ax.scatter(pts[:, 0], pts[:, 1], s=22, c="white", zorder=5,
+                       alpha=0.9, edgecolors="black", linewidths=0.5)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_title(f"Voronoi Diagram — {n_pts} sites", color="#e0e0e0",
+                     fontsize=14, fontweight="bold", pad=12)
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
 class FibonacciRenderer(_StubMixin, BasePattern):
     name = "Fibonacci Spiral"
