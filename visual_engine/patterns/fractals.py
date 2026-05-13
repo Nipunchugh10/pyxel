@@ -595,9 +595,99 @@ class HilbertCurveRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class LSystemTreeRenderer(_StubMixin, BasePattern):
+class LSystemTreeRenderer(BasePattern):
+    """Pattern 10 — L-System Tree via string rewriting + turtle interpretation."""
     name = "L-System Tree"
     group = "Geometric & Mathematical"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=5, min=1, max=7, step=1,
+                              description="Iterations:"),
+            widgets.FloatSlider(value=25.0, min=10.0, max=45.0, step=1.0,
+                                description="Angle:", readout_format=".0f"),
+            widgets.FloatSlider(value=5.0, min=1.0, max=15.0, step=0.5,
+                                description="Branch Len:", readout_format=".1f"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def _expand(self, n: int) -> str:
+        """Expand the axiom for n iterations using Prusinkiewicz's branching tree."""
+        # Axiom: X   Rules: X → F+[[X]-X]-F[-FX]+X,  F → FF
+        rules = {
+            "X": "F+[[X]-X]-F[-FX]+X",
+            "F": "FF",
+        }
+        s = "X"
+        for _ in range(n):
+            s = "".join(rules.get(c, c) for c in s)
+        return s
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from matplotlib.collections import LineCollection
+        iterations = int(kwargs.get("iterations", 5))
+        angle_deg = float(kwargs.get("angle", 25.0))
+        branch_len = float(kwargs.get("branch_len", 5.0))
+
+        sentence = self._expand(iterations)
+        angle_rad = np.radians(angle_deg)
+
+        # Turtle interpretation
+        stack = []
+        x, y = 0.0, 0.0
+        heading = np.pi / 2.0   # start pointing up
+        depth = 0
+        segments = []
+        seg_depths = []
+
+        for ch in sentence:
+            if ch == "F":
+                nx = x + branch_len * np.cos(heading)
+                ny = y + branch_len * np.sin(heading)
+                segments.append([(x, y), (nx, ny)])
+                seg_depths.append(depth)
+                x, y = nx, ny
+            elif ch == "+":
+                heading += angle_rad
+            elif ch == "-":
+                heading -= angle_rad
+            elif ch == "[":
+                stack.append((x, y, heading, depth))
+                depth += 1
+            elif ch == "]":
+                x, y, heading, depth = stack.pop()
+
+        if not segments:
+            return
+
+        palette_colors = ColorUtils.gradient_array(palette, max(seg_depths) + 1
+                                                   if seg_depths else 1)
+        colors = [palette_colors[min(d, len(palette_colors) - 1)]
+                  for d in seg_depths]
+
+        all_pts = np.array([pt for seg in segments for pt in seg])
+        mx = all_pts[:, 0]
+        my = all_pts[:, 1]
+        pad_x = max((mx.max() - mx.min()) * 0.05, 1.0)
+        pad_y = max((my.max() - my.min()) * 0.05, 1.0)
+
+        fig, ax = self._create_figure(figsize=(8, 10), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=1.0, alpha=0.92)
+        ax.add_collection(lc)
+
+        ax.set_xlim(mx.min() - pad_x, mx.max() + pad_x)
+        ax.set_ylim(my.min() - pad_y, my.max() + pad_y)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"L-System Tree — {iterations} iter, {angle_deg:.0f}°",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
 class ApolloniusRenderer(_StubMixin, BasePattern):
     name = "Apollonius Gasket"
