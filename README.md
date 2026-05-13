@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | ✅ Complete |
 | 100 pattern class stubs registered | ✅ Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | ✅ Complete |
-| Pattern implementations | 🔧 **5 / 100** — in progress |
+| Pattern implementations | 🔧 **10 / 100** — in progress |
 
 ---
 
