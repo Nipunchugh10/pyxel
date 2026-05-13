@@ -426,9 +426,52 @@ class VoronoiRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class FibonacciRenderer(_StubMixin, BasePattern):
+class FibonacciRenderer(BasePattern):
+    """Pattern 7 — Fibonacci Spiral via the golden-angle sunflower model."""
     name = "Fibonacci Spiral"
     group = "Geometric & Mathematical"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=500, min=50, max=2000, step=50,
+                              description="Points:"),
+            widgets.FloatSlider(value=3.0, min=0.5, max=10.0, step=0.5,
+                                description="Point Size:", readout_format=".1f"),
+            widgets.Checkbox(value=False, description="Show Lines"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n = int(kwargs.get("points", 500))
+        pt_size = float(kwargs.get("point_size", 3.0))
+        show_lines = bool(kwargs.get("show_lines", False))
+
+        golden_angle = np.pi * (3.0 - np.sqrt(5.0))  # ≈ 137.508°
+        i = np.arange(n)
+        r = np.sqrt(i / n)
+        theta = i * golden_angle
+        x = r * np.cos(theta)
+        y = r * np.sin(theta)
+
+        colors = ColorUtils.gradient_array(palette, n)
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        if show_lines:
+            ax.plot(x, y, color="white", alpha=0.15, linewidth=0.5, zorder=1)
+        ax.scatter(x, y, c=colors, s=pt_size ** 2, alpha=0.88, zorder=2,
+                   linewidths=0)
+
+        ax.set_aspect("equal")
+        ax.set_xlim(-1.1, 1.1)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_title(f"Fibonacci Spiral — {n} seeds", color="#e0e0e0",
+                     fontsize=14, fontweight="bold", pad=12)
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
 class DragonCurveRenderer(_StubMixin, BasePattern):
     name = "Dragon Curve"
