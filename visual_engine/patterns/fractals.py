@@ -473,9 +473,62 @@ class FibonacciRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class DragonCurveRenderer(_StubMixin, BasePattern):
+class DragonCurveRenderer(BasePattern):
+    """Pattern 8 — Dragon Curve via iterative paper-fold turn sequence."""
     name = "Dragon Curve"
     group = "Geometric & Mathematical"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=12, min=1, max=16, step=1,
+                              description="Iterations:"),
+            widgets.FloatSlider(value=1.0, min=0.2, max=3.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from matplotlib.collections import LineCollection
+        iterations = int(kwargs.get("iterations", 12))
+        lw = float(kwargs.get("line_width", 1.0))
+
+        # Build turn sequence: 1 = right (+90°), -1 = left (−90°)
+        turns = [1]
+        for _ in range(iterations - 1):
+            turns = turns + [1] + [-t for t in reversed(turns)]
+
+        # Walk the path
+        dx = [1, 0, -1, 0]
+        dy = [0, 1, 0, -1]
+        x, y = [0], [0]
+        direction = 0
+        for t in turns:
+            direction = (direction + t) % 4
+            x.append(x[-1] + dx[direction])
+            y.append(y[-1] + dy[direction])
+
+        coords = np.column_stack([x, y])          # (n+1, 2)
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)  # (n, 2, 2)
+        colors = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=lw,
+                            capstyle="round")
+        ax.add_collection(lc)
+
+        margin = max(coords[:, 0].max() - coords[:, 0].min(),
+                     coords[:, 1].max() - coords[:, 1].min()) * 0.04 + 0.5
+        ax.set_xlim(coords[:, 0].min() - margin, coords[:, 0].max() + margin)
+        ax.set_ylim(coords[:, 1].min() - margin, coords[:, 1].max() + margin)
+        ax.set_aspect("equal")
+        ax.set_title(f"Dragon Curve — {iterations} iterations", color="#e0e0e0",
+                     fontsize=14, fontweight="bold", pad=12)
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
 class HilbertCurveRenderer(_StubMixin, BasePattern):
     name = "Hilbert Curve"
