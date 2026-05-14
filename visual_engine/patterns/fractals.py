@@ -970,20 +970,43 @@ class LorenzAttractorRenderer(BasePattern):
         traj_y = np.empty(steps)
         traj_z = np.empty(steps)
         x, y, z = 0.1, 0.0, 0.0
-        traj_x[0] = x;  traj_y[0] = y;  traj_z[0] = z
+        traj_x[0] = x
+        traj_y[0] = y
+        traj_z[0] = z
 
         for i in range(1, steps):
-            dx1 = sigma*(y-x);              dy1 = x*(rho-z)-y;          dz1 = x*y - beta*z
-            x2  = x + .5*dt*dx1;            y2  = y + .5*dt*dy1;         z2  = z + .5*dt*dz1
-            dx2 = sigma*(y2-x2);            dy2 = x2*(rho-z2)-y2;       dz2 = x2*y2 - beta*z2
-            x3  = x + .5*dt*dx2;            y3  = y + .5*dt*dy2;         z3  = z + .5*dt*dz2
-            dx3 = sigma*(y3-x3);            dy3 = x3*(rho-z3)-y3;       dz3 = x3*y3 - beta*z3
-            x4  = x +    dt*dx3;            y4  = y +    dt*dy3;         z4  = z +    dt*dz3
-            dx4 = sigma*(y4-x4);            dy4 = x4*(rho-z4)-y4;       dz4 = x4*y4 - beta*z4
-            x  += dt/6*(dx1 + 2*dx2 + 2*dx3 + dx4)
-            y  += dt/6*(dy1 + 2*dy2 + 2*dy3 + dy4)
-            z  += dt/6*(dz1 + 2*dz2 + 2*dz3 + dz4)
-            traj_x[i] = x;  traj_y[i] = y;  traj_z[i] = z
+            # k1
+            dx1 = sigma * (y - x)
+            dy1 = x * (rho - z) - y
+            dz1 = x * y - beta * z
+            # k2
+            x2 = x + 0.5 * dt * dx1
+            y2 = y + 0.5 * dt * dy1
+            z2 = z + 0.5 * dt * dz1
+            dx2 = sigma * (y2 - x2)
+            dy2 = x2 * (rho - z2) - y2
+            dz2 = x2 * y2 - beta * z2
+            # k3
+            x3 = x + 0.5 * dt * dx2
+            y3 = y + 0.5 * dt * dy2
+            z3 = z + 0.5 * dt * dz2
+            dx3 = sigma * (y3 - x3)
+            dy3 = x3 * (rho - z3) - y3
+            dz3 = x3 * y3 - beta * z3
+            # k4
+            x4 = x + dt * dx3
+            y4 = y + dt * dy3
+            z4 = z + dt * dz3
+            dx4 = sigma * (y4 - x4)
+            dy4 = x4 * (rho - z4) - y4
+            dz4 = x4 * y4 - beta * z4
+            # combine
+            x += dt / 6 * (dx1 + 2 * dx2 + 2 * dx3 + dx4)
+            y += dt / 6 * (dy1 + 2 * dy2 + 2 * dy3 + dy4)
+            z += dt / 6 * (dz1 + 2 * dz2 + 2 * dz3 + dz4)
+            traj_x[i] = x
+            traj_y[i] = y
+            traj_z[i] = z
 
         # Drop transient; plot on the classic x–z butterfly plane
         skip = min(500, steps // 10)
