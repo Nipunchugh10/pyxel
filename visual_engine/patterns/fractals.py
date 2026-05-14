@@ -689,25 +689,394 @@ class LSystemTreeRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class ApolloniusRenderer(_StubMixin, BasePattern):
+class ApolloniusRenderer(BasePattern):
+    """Pattern 11 — Apollonius Gasket via Descartes' Circle Theorem."""
     name = "Apollonius Gasket"
     group = "Geometric & Mathematical"
 
-class LissajousRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=4, min=1, max=6, step=1,
+                              description="Depth:"),
+            widgets.FloatSlider(value=0.005, min=0.001, max=0.02, step=0.001,
+                                description="Min Radius:", readout_format=".3f"),
+            widgets.Checkbox(value=True, description="Show Boundary"),
+        ]
+
+    def _apollonius_circles(self, depth, min_r):
+        """Generate gasket circles via BFS + Descartes' theorem."""
+        from collections import deque
+
+        # Three equal mutually tangent inner circles inscribed in the unit disk.
+        # Their curvature k_s satisfies  3k² − 6k − 1 = 0  →  k_s = 1 + 2/√3
+        k_s = 1.0 + 2.0 / np.sqrt(3.0)
+        r_s = 1.0 / k_s
+        d_s = 1.0 - r_s          # distance from origin to each inner center
+
+        c0 = (-1.0,  0.0 + 0.0j)                                       # outer bounding circle
+        c1 = ( k_s,  d_s * np.exp(1j * np.pi / 2))
+        c2 = ( k_s,  d_s * np.exp(1j * (np.pi / 2 + 2 * np.pi / 3)))
+        c3 = ( k_s,  d_s * np.exp(1j * (np.pi / 2 + 4 * np.pi / 3)))
+
+        def _key(k, z):
+            return (round(float(k), 4),
+                    round(float(z.real), 4),
+                    round(float(z.imag), 4))
+
+        circles = {
+            _key(*c0): (*c0, -1),
+            _key(*c1): (*c1,  0),
+            _key(*c2): (*c2,  0),
+            _key(*c3): (*c3,  0),
+        }
+
+        # Each queue entry: (k1, z1, k2, z2, k3, z3, exploration_depth)
+        queue = deque([
+            (*c0, *c1, *c2, 0),
+            (*c0, *c1, *c3, 0),
+            (*c0, *c2, *c3, 0),
+            (*c1, *c2, *c3, 0),
+        ])
+
+        MAX = 20_000
+        while queue and len(circles) < MAX:
+            k1, z1, k2, z2, k3, z3, d = queue.popleft()
+            if d >= depth:
+                continue
+
+            # ── Descartes' theorem: k4 = (k1+k2+k3) ± 2√(k1k2+k2k3+k1k3)
+            s_k = k1 + k2 + k3
+            p_k = k1 * k2 + k2 * k3 + k1 * k3
+            if p_k < 0:
+                continue
+            sq_k = np.sqrt(p_k)
+
+            # ── Extended Descartes: k4·z4 = (k1z1+k2z2+k3z3) ± 2√(k1k2z1z2+…)
+            s_z  = k1 * z1 + k2 * z2 + k3 * z3
+            p_z  = k1*k2*z1*z2 + k2*k3*z2*z3 + k1*k3*z1*z3
+            sq_z = np.sqrt(p_z + 0j)
+
+            for sign in (+1, -1):
+                k4 = s_k + sign * 2.0 * sq_k
+                if k4 <= 1e-9:
+                    continue                      # skip zero / negative curvature
+                r4 = 1.0 / k4
+                if r4 < min_r:
+                    continue                      # too small to draw
+                z4 = (s_z + sign * 2.0 * sq_z) / k4
+                if abs(z4) + r4 > 1.001:
+                    continue                      # outside bounding circle
+                ck = _key(k4, z4)
+                if ck in circles:
+                    continue                      # already discovered
+                circles[ck] = (k4, z4, d + 1)
+                queue.append((k1, z1, k2, z2, k4, z4, d + 1))
+                queue.append((k1, z1, k3, z3, k4, z4, d + 1))
+                queue.append((k2, z2, k3, z3, k4, z4, d + 1))
+
+        return list(circles.values())
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        depth         = int(kwargs.get("depth",         4))
+        min_r         = float(kwargs.get("min_radius",  0.005))
+        show_boundary = bool(kwargs.get("show_boundary", True))
+
+        cmap        = ColorUtils.make_colormap(palette)
+        all_circles = self._apollonius_circles(depth, min_r)
+
+        inner = [(k, z, d) for k, z, d in all_circles if k > 0]
+        inner.sort(key=lambda c: c[0])              # largest radius first for correct layering
+        max_d = max((d for _, _, d in inner), default=1)
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+
+        if show_boundary:
+            ax.add_patch(plt.Circle((0, 0), 1.0, fill=False,
+                                    edgecolor="#888888", linewidth=1.5, zorder=1))
+
+        for k, z, d in inner:
+            r  = 1.0 / k
+            t  = d / max(max_d, 1)
+            c  = cmap(t)
+            lw = max(0.05, 0.4 - d * 0.05)
+            ax.add_patch(plt.Circle(
+                (z.real, z.imag), r,
+                facecolor=(*c[:3], 0.80),
+                edgecolor=c[:3],
+                linewidth=lw,
+                zorder=2 + d,
+            ))
+
+        ax.set_xlim(-1.08, 1.08)
+        ax.set_ylim(-1.08, 1.08)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Apollonius Gasket — depth {depth}  ({len(inner)} circles)",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class LissajousRenderer(BasePattern):
+    """Pattern 12 — Lissajous Figures via parametric sine curves."""
     name = "Lissajous Figures"
     group = "Geometric & Mathematical"
 
-class RoseCurvesRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=3, min=1, max=12, step=1,
+                              description="Freq A:"),
+            widgets.IntSlider(value=4, min=1, max=12, step=1,
+                              description="Freq B:"),
+            widgets.FloatSlider(value=90.0, min=0.0, max=360.0, step=5.0,
+                                description="Phase Deg:", readout_format=".0f"),
+            widgets.FloatSlider(value=1.5, min=0.2, max=3.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+            widgets.IntSlider(value=2000, min=500, max=5000, step=100,
+                              description="Points:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from math import gcd
+        from matplotlib.collections import LineCollection
+
+        a     = int(kwargs.get("freq_a",    3))
+        b     = int(kwargs.get("freq_b",    4))
+        delta = np.radians(float(kwargs.get("phase_deg", 90.0)))
+        lw    = float(kwargs.get("line_width", 1.5))
+        n_pts = int(kwargs.get("points",    2000))
+
+        # Full closed period: T = 2π / gcd(a, b)
+        g = gcd(a, b)
+        t = np.linspace(0, 2 * np.pi / g, n_pts, endpoint=False)
+        x = np.sin(a * t + delta)
+        y = np.sin(b * t)
+
+        coords   = np.column_stack([x, y])
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)
+        colors   = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=lw,
+                            capstyle="round", alpha=0.9)
+        ax.add_collection(lc)
+
+        ax.set_xlim(-1.15, 1.15)
+        ax.set_ylim(-1.15, 1.15)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Lissajous Figure — a={a}, b={b}, δ={np.degrees(delta):.0f}°",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class RoseCurvesRenderer(BasePattern):
+    """Pattern 13 — Rose Curves: r = cos(p/q · θ) in polar coordinates."""
     name = "Rose Curves"
     group = "Geometric & Mathematical"
 
-class LorenzAttractorRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=5, min=1, max=12, step=1,
+                              description="Numerator:"),
+            widgets.IntSlider(value=3, min=1, max=8, step=1,
+                              description="Denominator:"),
+            widgets.FloatSlider(value=1.5, min=0.2, max=3.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+            widgets.IntSlider(value=3000, min=500, max=8000, step=100,
+                              description="Points:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from math import gcd
+        from matplotlib.collections import LineCollection
+
+        p     = int(kwargs.get("numerator",   5))
+        q     = int(kwargs.get("denominator", 3))
+        lw    = float(kwargs.get("line_width", 1.5))
+        n_pts = int(kwargs.get("points",    3000))
+
+        # Reduce to lowest terms
+        g = gcd(p, q)
+        p, q = p // g, q // g
+
+        # θ ∈ [0, 2π·q] guarantees closure for any rational k = p/q
+        theta = np.linspace(0, 2 * np.pi * q, n_pts, endpoint=True)
+        r     = np.cos((p / q) * theta)
+        x     = r * np.cos(theta)
+        y     = r * np.sin(theta)
+
+        coords   = np.column_stack([x, y])
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)
+        colors   = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=lw,
+                            capstyle="round", alpha=0.9)
+        ax.add_collection(lc)
+
+        ax.set_xlim(-1.1, 1.1)
+        ax.set_ylim(-1.1, 1.1)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Rose Curve — r = cos({p}/{q} · θ)",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class LorenzAttractorRenderer(BasePattern):
+    """Pattern 14 — Lorenz Attractor via RK4 numerical integration."""
     name = "Chaos Attractor (Lorenz)"
     group = "Geometric & Mathematical"
 
-class WaveInterferenceRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.FloatSlider(value=10.0, min=5.0, max=20.0, step=0.5,
+                                description="Sigma:", readout_format=".1f"),
+            widgets.FloatSlider(value=28.0, min=10.0, max=50.0, step=0.5,
+                                description="Rho:", readout_format=".1f"),
+            widgets.FloatSlider(value=2.667, min=1.0, max=5.0, step=0.05,
+                                description="Beta:", readout_format=".3f"),
+            widgets.IntSlider(value=20000, min=5000, max=50000, step=1000,
+                              description="Steps:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from matplotlib.collections import LineCollection
+
+        sigma = float(kwargs.get("sigma",  10.0))
+        rho   = float(kwargs.get("rho",    28.0))
+        beta  = float(kwargs.get("beta",   2.667))
+        steps = int(kwargs.get("steps",    20000))
+        dt    = 0.01
+
+        # RK4 integration — use Python floats in the hot loop for speed
+        traj_x = np.empty(steps)
+        traj_y = np.empty(steps)
+        traj_z = np.empty(steps)
+        x, y, z = 0.1, 0.0, 0.0
+        traj_x[0] = x;  traj_y[0] = y;  traj_z[0] = z
+
+        for i in range(1, steps):
+            dx1 = sigma*(y-x);              dy1 = x*(rho-z)-y;          dz1 = x*y - beta*z
+            x2  = x + .5*dt*dx1;            y2  = y + .5*dt*dy1;         z2  = z + .5*dt*dz1
+            dx2 = sigma*(y2-x2);            dy2 = x2*(rho-z2)-y2;       dz2 = x2*y2 - beta*z2
+            x3  = x + .5*dt*dx2;            y3  = y + .5*dt*dy2;         z3  = z + .5*dt*dz2
+            dx3 = sigma*(y3-x3);            dy3 = x3*(rho-z3)-y3;       dz3 = x3*y3 - beta*z3
+            x4  = x +    dt*dx3;            y4  = y +    dt*dy3;         z4  = z +    dt*dz3
+            dx4 = sigma*(y4-x4);            dy4 = x4*(rho-z4)-y4;       dz4 = x4*y4 - beta*z4
+            x  += dt/6*(dx1 + 2*dx2 + 2*dx3 + dx4)
+            y  += dt/6*(dy1 + 2*dy2 + 2*dy3 + dy4)
+            z  += dt/6*(dz1 + 2*dz2 + 2*dz3 + dz4)
+            traj_x[i] = x;  traj_y[i] = y;  traj_z[i] = z
+
+        # Drop transient; plot on the classic x–z butterfly plane
+        skip = min(500, steps // 10)
+        xs, zs  = traj_x[skip:], traj_z[skip:]
+        coords  = np.column_stack([xs, zs])
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)
+        colors   = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=0.5, alpha=0.85)
+        ax.add_collection(lc)
+
+        pad_x = (xs.max() - xs.min()) * 0.05
+        pad_z = (zs.max() - zs.min()) * 0.05
+        ax.set_xlim(xs.min() - pad_x, xs.max() + pad_x)
+        ax.set_ylim(zs.min() - pad_z, zs.max() + pad_z)
+        ax.set_title(
+            f"Lorenz Attractor — σ={sigma:.1f}  ρ={rho:.1f}  β={beta:.3f}",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class WaveInterferenceRenderer(BasePattern):
+    """Pattern 15 — Wave Interference from multiple coherent point sources."""
     name = "Wave Interference Pattern"
     group = "Geometric & Mathematical"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=3, min=2, max=8, step=1,
+                              description="N Sources:"),
+            widgets.FloatSlider(value=15.0, min=5.0, max=40.0, step=1.0,
+                                description="Wavelength:", readout_format=".0f"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        res        = self._resolve_resolution(resolution)
+        n_src      = int(kwargs.get("n_sources",   3))
+        wavelength = float(kwargs.get("wavelength", 15.0))
+        seed       = int(kwargs.get("seed",         42))
+
+        rng = np.random.default_rng(seed)
+
+        # Source positions in a coordinate system spanning ±100 units
+        angles = rng.uniform(0, 2 * np.pi, n_src)
+        radii  = np.sqrt(rng.uniform(0.04, 0.49, n_src)) * 100
+        src_x  = radii * np.cos(angles)
+        src_y  = radii * np.sin(angles)
+
+        # Rasterise: grid from −100 to +100 matches source units
+        lin    = np.linspace(-100.0, 100.0, res)
+        X, Y   = np.meshgrid(lin, lin)
+        k_wave = 2.0 * np.pi / wavelength
+
+        A = np.zeros((res, res))
+        for i in range(n_src):
+            d  = np.hypot(X - src_x[i], Y - src_y[i])
+            d  = np.maximum(d, 0.5)          # avoid singularity at source location
+            A += np.cos(k_wave * d)
+
+        # Normalise to [−1, 1]
+        a_max = np.abs(A).max()
+        if a_max > 0:
+            A /= a_max
+
+        cmap = ColorUtils.make_colormap(palette)
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        ax.imshow(A, cmap=cmap, origin="lower", extent=[-100, 100, -100, 100],
+                  vmin=-1.0, vmax=1.0, interpolation="bilinear")
+
+        # Mark source locations
+        for i in range(n_src):
+            ax.plot(src_x[i], src_y[i], "+", color="white",
+                    markersize=10, markeredgewidth=2, zorder=5, alpha=0.9)
+
+        ax.set_xlim(-100, 100)
+        ax.set_ylim(-100, 100)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Wave Interference — {n_src} sources, λ = {wavelength:.0f}",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
 class HypocycloidRenderer(_StubMixin, BasePattern):
     name = "Hypocycloid & Epicycloid"
