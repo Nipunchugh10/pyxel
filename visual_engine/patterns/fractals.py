@@ -1101,22 +1101,424 @@ class WaveInterferenceRenderer(BasePattern):
         plt.show()
         plt.close(fig)
 
-class HypocycloidRenderer(_StubMixin, BasePattern):
+class HypocycloidRenderer(BasePattern):
+    """Pattern 16 — Hypocycloid & Epicycloid via parametric rolling-circle equations."""
     name = "Hypocycloid & Epicycloid"
     group = "Geometric & Mathematical"
 
-class TruchetRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.FloatSlider(value=5.0, min=2.0, max=20.0, step=0.5,
+                                description="R (Fixed):", readout_format=".1f"),
+            widgets.FloatSlider(value=3.0, min=0.5, max=10.0, step=0.5,
+                                description="r (Roll):", readout_format=".1f"),
+            widgets.FloatSlider(value=3.0, min=0.1, max=10.0, step=0.1,
+                                description="d (Pen):", readout_format=".1f"),
+            widgets.Dropdown(options=["Hypocycloid", "Epicycloid"],
+                             value="Hypocycloid", description="Type:"),
+            widgets.IntSlider(value=4000, min=500, max=10000, step=100,
+                              description="Points:"),
+            widgets.FloatSlider(value=1.5, min=0.2, max=3.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from math import gcd
+        from matplotlib.collections import LineCollection
+
+        R    = float(kwargs.get("r_(fixed)", 5.0))
+        r    = float(kwargs.get("r_(roll)",  3.0))
+        d    = float(kwargs.get("d_(pen)",   3.0))
+        mode = str(kwargs.get("type", "Hypocycloid"))
+        n    = int(kwargs.get("points", 4000))
+        lw   = float(kwargs.get("line_width", 1.5))
+
+        r = max(r, 0.1)  # guard against zero division
+        R_int = max(1, int(round(R)))
+        r_int = max(1, int(round(r)))
+        periods = R_int // gcd(R_int, r_int)
+        t = np.linspace(0, 2 * np.pi * periods, n, endpoint=True)
+
+        if mode == "Hypocycloid":
+            x = (R - r) * np.cos(t) + d * np.cos((R - r) / r * t)
+            y = (R - r) * np.sin(t) - d * np.sin((R - r) / r * t)
+        else:  # Epicycloid
+            x = (R + r) * np.cos(t) - d * np.cos((R + r) / r * t)
+            y = (R + r) * np.sin(t) - d * np.sin((R + r) / r * t)
+
+        coords   = np.column_stack([x, y])
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)
+        colors   = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=lw,
+                            capstyle="round", alpha=0.9)
+        ax.add_collection(lc)
+
+        extent = max(np.abs(x).max(), np.abs(y).max())
+        pad    = extent * 0.08 + 0.3
+        lim    = extent + pad
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"{mode} — R={R:.1f}, r={r:.1f}, d={d:.1f}",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class TruchetRenderer(BasePattern):
+    """Pattern 17 — Truchet Tiles via random arc orientations on a square grid."""
     name = "Truchet Tiles"
     group = "Geometric & Mathematical"
 
-class HexGridRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=20, min=5, max=50, step=1,
+                              description="Grid Size:"),
+            widgets.Dropdown(options=["Arcs", "Diagonals", "Mixed"],
+                             value="Arcs", description="Style:"),
+            widgets.FloatSlider(value=2.0, min=0.5, max=5.0, step=0.25,
+                                description="Line Width:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        grid_n = int(kwargs.get("grid_size", 20))
+        style  = str(kwargs.get("style", "Arcs"))
+        lw     = float(kwargs.get("line_width", 2.0))
+        seed   = int(kwargs.get("seed", 42))
+
+        rng          = np.random.default_rng(seed)
+        orientations = rng.integers(0, 2, size=(grid_n, grid_n))
+        colors_grad  = ColorUtils.gradient_array(palette, grid_n)
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+
+        for row in range(grid_n):
+            for col in range(grid_n):
+                x0     = float(col)
+                y0     = float(row)
+                orient = int(orientations[row, col])
+                color  = colors_grad[row % len(colors_grad)]
+
+                use_arcs = (style == "Arcs") or (style == "Mixed" and (row + col) % 2 == 0)
+
+                if use_arcs:
+                    if orient == 0:
+                        arc1 = patches.Arc((x0, y0),       1.0, 1.0,
+                                           theta1=0,   theta2=90,  color=color, linewidth=lw)
+                        arc2 = patches.Arc((x0+1, y0+1), 1.0, 1.0,
+                                           theta1=180, theta2=270, color=color, linewidth=lw)
+                    else:
+                        arc1 = patches.Arc((x0+1, y0),   1.0, 1.0,
+                                           theta1=90,  theta2=180, color=color, linewidth=lw)
+                        arc2 = patches.Arc((x0, y0+1),   1.0, 1.0,
+                                           theta1=270, theta2=360, color=color, linewidth=lw)
+                    ax.add_patch(arc1)
+                    ax.add_patch(arc2)
+                else:
+                    if orient == 0:
+                        ax.plot([x0, x0+1], [y0, y0+1],
+                                color=color, linewidth=lw, solid_capstyle="round")
+                    else:
+                        ax.plot([x0+1, x0], [y0, y0+1],
+                                color=color, linewidth=lw, solid_capstyle="round")
+
+        ax.set_xlim(0, grid_n)
+        ax.set_ylim(0, grid_n)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Truchet Tiles — {grid_n}×{grid_n}, style={style}",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class HexGridRenderer(BasePattern):
+    """Pattern 18 — Hexagonal Grid Art via axial-coordinate flat-top hex tessellation."""
     name = "Hexagonal Grid Art"
     group = "Geometric & Mathematical"
 
-class SpirographRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=12, min=3, max=30, step=1,
+                              description="Rings:"),
+            widgets.FloatSlider(value=1.0, min=0.2, max=2.0, step=0.1,
+                                description="Hex Size:", readout_format=".1f"),
+            widgets.Dropdown(options=["Distance", "Angle", "Checkerboard", "Random"],
+                             value="Distance", description="Coloring:"),
+            widgets.FloatSlider(value=0.2, min=0.0, max=1.0, step=0.05,
+                                description="Edge Alpha:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999,
+                              description="Seed:"),
+        ]
+
+    def _hex_corners(self, cx, cy, size):
+        """Six corners of a pointy-top hexagon centred at (cx, cy)."""
+        angles = np.arange(6) * (np.pi / 3) + np.pi / 6
+        return np.column_stack([cx + size * np.cos(angles),
+                                cy + size * np.sin(angles)])
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        rings      = int(kwargs.get("rings", 12))
+        size       = float(kwargs.get("hex_size", 1.0))
+        coloring   = str(kwargs.get("coloring", "Distance"))
+        edge_alpha = float(kwargs.get("edge_alpha", 0.2))
+        seed       = int(kwargs.get("seed", 42))
+
+        rng  = np.random.default_rng(seed)
+        cmap = ColorUtils.make_colormap(palette)
+
+        # Axial coordinates — pointy-top layout
+        w = size * np.sqrt(3)        # horizontal spacing
+        h = size * 1.5               # vertical spacing
+
+        hex_data = []
+        for q in range(-rings, rings + 1):
+            for s in range(-rings, rings + 1):
+                r_coord = -q - s
+                if abs(r_coord) <= rings:
+                    cx = w * (q + s * 0.5)
+                    cy = h * s
+                    hex_data.append((cx, cy, q, s, r_coord))
+
+        if not hex_data:
+            return
+
+        centers = np.array([(h[0], h[1]) for h in hex_data])
+        qs      = np.array([h[2] for h in hex_data])
+        ss      = np.array([h[3] for h in hex_data])
+        rs      = np.array([h[4] for h in hex_data])
+
+        if coloring == "Distance":
+            dist = np.hypot(centers[:, 0], centers[:, 1])
+            t = (dist - dist.min()) / (dist.max() - dist.min() + 1e-9)
+        elif coloring == "Angle":
+            angle = np.arctan2(centers[:, 1], centers[:, 0])
+            t = (angle + np.pi) / (2 * np.pi)
+        elif coloring == "Checkerboard":
+            t = ((qs + ss + rs) % 3) / 2.0
+        else:  # Random
+            t = rng.random(len(hex_data))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        for i, (cx, cy, _, _, _) in enumerate(hex_data):
+            corners = self._hex_corners(cx, cy, size * 0.97)
+            color   = cmap(t[i])
+            polygon = plt.Polygon(corners, closed=True, fill=True,
+                                  facecolor=color,
+                                  edgecolor=(1.0, 1.0, 1.0, edge_alpha),
+                                  linewidth=0.5)
+            ax.add_patch(polygon)
+
+        margin = size * 2
+        ax.set_xlim(centers[:, 0].min() - margin, centers[:, 0].max() + margin)
+        ax.set_ylim(centers[:, 1].min() - margin, centers[:, 1].max() + margin)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Hexagonal Grid Art — {len(hex_data)} cells, {coloring}",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class SpirographRenderer(BasePattern):
+    """Pattern 19 — Spirograph Generator via layered hypotrochoid curves."""
     name = "Spirograph Generator"
     group = "Geometric & Mathematical"
 
-class ParametricCurveRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=7, min=2, max=20, step=1,
+                              description="Teeth Out:"),
+            widgets.IntSlider(value=3, min=1, max=15, step=1,
+                              description="Teeth In:"),
+            widgets.FloatSlider(value=0.75, min=0.1, max=1.0, step=0.05,
+                                description="Pen Ratio:", readout_format=".2f"),
+            widgets.IntSlider(value=3, min=1, max=6, step=1,
+                              description="Layers:"),
+            widgets.FloatSlider(value=1.2, min=0.2, max=3.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from math import gcd
+        from matplotlib.collections import LineCollection
+
+        R_teeth   = int(kwargs.get("teeth_out", 7))
+        r_teeth   = int(kwargs.get("teeth_in",  3))
+        pen_ratio = float(kwargs.get("pen_ratio", 0.75))
+        layers    = int(kwargs.get("layers", 3))
+        lw        = float(kwargs.get("line_width", 1.2))
+
+        R = float(R_teeth)
+        r = float(max(r_teeth, 1))
+        g = gcd(R_teeth, r_teeth)
+        periods = R_teeth // g
+
+        n_pts       = 5000
+        layer_cols  = ColorUtils.gradient_array(palette, max(layers, 1))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+
+        for layer in range(layers):
+            # Each layer varies the pen distance from r*0.3 to r*pen_ratio
+            d = r * (0.3 + 0.7 * pen_ratio * (layer + 1) / layers)
+            t = np.linspace(0, 2 * np.pi * periods, n_pts, endpoint=True)
+            x = (R - r) * np.cos(t) + d * np.cos((R - r) / r * t)
+            y = (R - r) * np.sin(t) - d * np.sin((R - r) / r * t)
+
+            coords    = np.column_stack([x, y])
+            segments  = np.stack([coords[:-1], coords[1:]], axis=1)
+            seg_color = np.tile(layer_cols[layer], (len(segments), 1))
+            lc = LineCollection(segments, colors=seg_color, linewidths=lw,
+                                capstyle="round", alpha=0.80)
+            ax.add_collection(lc)
+
+        lim = R + 0.5
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Spirograph — R={R_teeth}, r={r_teeth}, pen={pen_ratio:.2f}, {layers} layers",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+class ParametricCurveRenderer(BasePattern):
+    """Pattern 20 — Parametric Curve Art: a curated gallery of named mathematical curves."""
     name = "Parametric Curve Art"
     group = "Geometric & Mathematical"
+
+    _CURVE_RANGES = {
+        "Butterfly":           (0.0,        12 * np.pi),
+        "Maclaurin Spiral":    (0.01,        4 * np.pi),
+        "Astroid":             (0.0,         2 * np.pi),
+        "Epitrochoid Star":    (0.0,        10 * np.pi),
+        "Superellipse":        (0.0,         2 * np.pi),
+        "Hypotrochoid Flower": (0.0,        14 * np.pi),
+        "Trisectrix":          (0.0,         2 * np.pi),
+        "Folium of Descartes": (-1.40,       1.40),
+    }
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.Dropdown(options=list(self._CURVE_RANGES.keys()),
+                             value="Butterfly", description="Curve:"),
+            widgets.IntSlider(value=5000, min=1000, max=10000, step=100,
+                              description="Points:"),
+            widgets.FloatSlider(value=1.5, min=0.3, max=4.0, step=0.1,
+                                description="Line Width:", readout_format=".1f"),
+            widgets.FloatSlider(value=0.9, min=0.1, max=1.0, step=0.05,
+                                description="Alpha:", readout_format=".2f"),
+        ]
+
+    def _compute_curve(self, name, t):
+        if name == "Butterfly":
+            e = np.exp(np.cos(t)) - 2.0 * np.cos(4.0 * t) - np.sin(t / 12.0) ** 5
+            return np.sin(t) * e, np.cos(t) * e
+
+        if name == "Maclaurin Spiral":
+            r = np.sqrt(t)
+            return r * np.cos(t), r * np.sin(t)
+
+        if name == "Astroid":
+            return np.cos(t) ** 3, np.sin(t) ** 3
+
+        if name == "Epitrochoid Star":
+            R, r, d = 5.0, 3.0, 5.0
+            x = (R + r) * np.cos(t) - d * np.cos((R + r) / r * t)
+            y = (R + r) * np.sin(t) - d * np.sin((R + r) / r * t)
+            return x, y
+
+        if name == "Superellipse":
+            n_exp = 2.5
+            c, s = np.cos(t), np.sin(t)
+            x = np.sign(c) * np.abs(c) ** (2.0 / n_exp)
+            y = np.sign(s) * np.abs(s) ** (2.0 / n_exp)
+            return x, y
+
+        if name == "Hypotrochoid Flower":
+            R, r, d = 7.0, 3.0, 6.0
+            x = (R - r) * np.cos(t) + d * np.cos((R - r) / r * t)
+            y = (R - r) * np.sin(t) - d * np.sin((R - r) / r * t)
+            return x, y
+
+        if name == "Trisectrix":
+            # MacLaurin trisectrix: r = a(1 + 2·cos θ)
+            r_vals = 1.0 + 2.0 * np.cos(t)
+            return r_vals * np.cos(t), r_vals * np.sin(t)
+
+        if name == "Folium of Descartes":
+            # t here is the tan-substitution parameter in (−π/2, π/2)
+            tan_t = np.tan(t)
+            denom = 1.0 + tan_t ** 3
+            denom = np.where(np.abs(denom) < 1e-6, 1e-6, denom)
+            return 3.0 * tan_t / denom, 3.0 * tan_t ** 2 / denom
+
+        # Fallback: unit circle
+        return np.cos(t), np.sin(t)
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        from matplotlib.collections import LineCollection
+
+        name  = str(kwargs.get("curve", "Butterfly"))
+        n_pts = int(kwargs.get("points", 5000))
+        lw    = float(kwargs.get("line_width", 1.5))
+        alpha = float(kwargs.get("alpha", 0.9))
+
+        t0, t1 = self._CURVE_RANGES.get(name, (0.0, 2 * np.pi))
+        t = np.linspace(t0, t1, n_pts, endpoint=True)
+
+        x, y = self._compute_curve(name, t)
+
+        # Remove Inf/NaN before plotting
+        mask = np.isfinite(x) & np.isfinite(y)
+        x, y = x[mask], y[mask]
+        if len(x) < 2:
+            return
+
+        coords   = np.column_stack([x, y])
+        segments = np.stack([coords[:-1], coords[1:]], axis=1)
+        colors   = ColorUtils.gradient_array(palette, len(segments))
+
+        fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
+        lc = LineCollection(segments, colors=colors, linewidths=lw,
+                            capstyle="round", alpha=alpha)
+        ax.add_collection(lc)
+
+        xr = x.max() - x.min() + 1e-9
+        yr = y.max() - y.min() + 1e-9
+        pad = 0.06
+        ax.set_xlim(x.min() - xr * pad, x.max() + xr * pad)
+        ax.set_ylim(y.min() - yr * pad, y.max() + yr * pad)
+        ax.set_aspect("equal")
+        ax.set_title(
+            f"Parametric Curve Art — {name}",
+            color="#e0e0e0", fontsize=14, fontweight="bold", pad=12,
+        )
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
