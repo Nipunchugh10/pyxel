@@ -1,6 +1,6 @@
 """
 Nature-Inspired Patterns (21-40)
-Patterns 21-27 are fully implemented; 28-40 remain as stubs awaiting Phase 1 sessions.
+Patterns 21-34 are fully implemented; 35-40 remain as stubs awaiting Phase 1 sessions.
 """
 
 import matplotlib.pyplot as plt
@@ -376,7 +376,7 @@ class FlockingBirdsRenderer(BasePattern):
 
 # ── Pattern 25 ────────────────────────────────────────────────────────────────
 
-class LightningBoltRenderer(BasePattern):
+class LightningdRenderer(BasePattern):
     """Pattern 25 — Lightning Bolt Generator (recursive midpoint displacement)."""
     name = "Lightning Bolt Generator"
     group = "Nature-Inspired"
@@ -677,35 +677,564 @@ class LeafVenationRenderer(BasePattern):
         plt.close(fig)
 
 
-# ── Stubs 28–40 ───────────────────────────────────────────────────────────────
+# ── Pattern 28 ────────────────────────────────────────────────────────────────
 
-class FireParticleRenderer(_StubMixin, BasePattern):
+class FireParticleRenderer(BasePattern):
+    """Pattern 28 — Fire Particle System."""
     name = "Fire Particle System"
     group = "Nature-Inspired"
 
-class GalaxySpiralRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=3000, min=500, max=8000, step=200,
+                              description="Particles:"),
+            widgets.FloatSlider(value=0.70, min=0.20, max=1.50, step=0.05,
+                                description="Heat:", readout_format=".2f"),
+            widgets.FloatSlider(value=0.35, min=0.00, max=1.00, step=0.05,
+                                description="Turbulence:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n    = int(kwargs.get("particles", 3000))
+        heat = float(kwargs.get("heat", 0.70))
+        turb = float(kwargs.get("turbulence", 0.35))
+        seed = int(kwargs.get("seed", 42))
+        rng  = np.random.default_rng(seed)
+
+        # age ∈ [0,1]: 0 = just born (hot, at base), 1 = dying (cool, at top).
+        # Beta(1, 2.5) skews toward young particles — base of fire is densest.
+        age = rng.beta(1.0, 2.5, n)
+
+        # Horizontal: spreads with age and turbulence
+        px = rng.normal(0.5, 0.05 + turb * 0.12 * age, n)
+        px = np.clip(px, 0.04, 0.96)
+
+        # Vertical: rises with age; heat scales max height
+        py = age * (0.70 + heat * 0.22) + rng.normal(0, 0.014, n)
+        py = np.clip(py, 0.0, 0.97)
+
+        # Temperature colour: 0 = dark red, 0.5 = orange, 0.8 = yellow, 1 = white
+        temp = np.clip(1.0 - age, 0.0, 1.0)
+        r_ch = np.ones(n)
+        g_ch = np.clip(temp * 1.9, 0.0, 1.0)
+        b_ch = np.clip((temp - 0.65) * 3.0, 0.0, 1.0)
+        a_ch = np.clip((1.0 - age * 0.75) * rng.uniform(0.5, 1.0, n), 0.05, 1.0)
+        sizes = np.clip((1.0 - age) * heat * 90 + rng.uniform(1, 12, n), 1, 250)
+        colors = np.column_stack([r_ch, g_ch, b_ch, a_ch])
+
+        fig, ax = self._create_figure(figsize=(6, 9), bg_color="#030202")
+
+        # Ember cluster at base — very hot, tight spread
+        n_emb = n // 6
+        ex = np.clip(rng.normal(0.5, 0.04, n_emb), 0.12, 0.88)
+        ey = rng.uniform(0.0, 0.04, n_emb)
+        er = np.ones(n_emb)
+        eg = rng.uniform(0.75, 1.0, n_emb)
+        eb = rng.uniform(0.0, 0.35, n_emb)
+        ea = np.full(n_emb, 0.90)
+        ember_c = np.column_stack([er, eg, eb, ea])
+        ax.scatter(ex, ey, s=rng.uniform(10, 55, n_emb), c=ember_c,
+                   linewidths=0, zorder=3)
+
+        # Main fire body
+        ax.scatter(px, py, s=sizes, c=colors, linewidths=0, zorder=2)
+
+        ax.set_xlim(0.05, 0.95)
+        ax.set_ylim(0.0, 1.0)
+        ax.axis("off")
+        ax.set_title("Fire Particle System", color="#ff7030", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 29 ────────────────────────────────────────────────────────────────
+
+class GalaxySpiralRenderer(BasePattern):
+    """Pattern 29 — Galaxy Spiral Arms (logarithmic spiral)."""
     name = "Galaxy Spiral Arms"
     group = "Nature-Inspired"
 
-class AuroraBorealisRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=3, min=1, max=6, step=1,
+                              description="Arms:"),
+            widgets.FloatSlider(value=1.2, min=0.5, max=3.0, step=0.1,
+                                description="Winding:", readout_format=".1f"),
+            widgets.IntSlider(value=5000, min=1000, max=12000, step=500,
+                              description="N Stars:"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_arms  = int(kwargs.get("arms", 3))
+        winding = float(kwargs.get("winding", 1.2))
+        n_stars = int(kwargs.get("n_stars", 5000))
+        seed    = int(kwargs.get("seed", 42))
+        rng     = np.random.default_rng(seed)
+
+        # Logarithmic spiral: r = r0 * exp(b * theta)
+        # theta_max = winding * 3π  →  winding=1 gives 1.5 turns, 2 gives 3 turns.
+        # b is chosen so r grows from r0=0.01 to r_max=0.46 over [0, theta_max].
+        r0, r_max = 0.010, 0.460
+        theta_max = winding * 3.0 * np.pi
+        b_param = np.log(r_max / r0) / theta_max
+
+        fig, ax = self._create_figure(figsize=(8, 8), bg_color="#01020a")
+
+        all_x, all_y, all_t = [], [], []
+        n_per_arm = n_stars // n_arms
+
+        for arm in range(n_arms):
+            arm_offset = arm * 2.0 * np.pi / n_arms
+            t = rng.uniform(0.0, 1.0, n_per_arm)   # position along arm (0=inner)
+            theta = t * theta_max
+            r = np.clip(r0 * np.exp(b_param * theta), 0.0, r_max)
+
+            x = r * np.cos(theta + arm_offset) + 0.5
+            y = r * np.sin(theta + arm_offset) + 0.5
+
+            # Gaussian spread perpendicular to arm tangent (wider toward outer edge)
+            spread = rng.normal(0, 0.004 + t * 0.020, n_per_arm)
+            perp_x = -np.sin(theta + arm_offset) * spread
+            perp_y =  np.cos(theta + arm_offset) * spread
+            all_x.append(x + perp_x)
+            all_y.append(y + perp_y)
+            all_t.append(t)
+
+        # Central bulge: compact spherical distribution
+        n_bulge = n_stars // 2
+        br = np.abs(rng.normal(0, 0.042, n_bulge))
+        ba = rng.uniform(0, 2 * np.pi, n_bulge)
+        all_x.append(br * np.cos(ba) + 0.5)
+        all_y.append(br * np.sin(ba) + 0.5)
+        all_t.append(np.zeros(n_bulge))   # bulge stars → inner colour (t=0)
+
+        sx = np.concatenate(all_x)
+        sy = np.concatenate(all_y)
+        sc = np.concatenate(all_t)
+
+        mask = (sx > 0.01) & (sx < 0.99) & (sy > 0.01) & (sy < 0.99)
+        sx, sy, sc = sx[mask], sy[mask], sc[mask]
+
+        # Colour gradient: inner warm yellow-white → outer cool blue-white
+        r_col = np.clip(1.00 - sc * 0.30, 0.5, 1.0)
+        g_col = np.clip(0.90 - sc * 0.35, 0.4, 1.0)
+        b_col = np.clip(0.60 + sc * 0.40, 0.5, 1.0)
+        a_col = np.clip(rng.uniform(0.3, 1.0, len(sx)), 0.1, 1.0)
+        star_colors = np.column_stack([r_col, g_col, b_col, a_col])
+        sizes = rng.uniform(0.5, 9, len(sx)) * (1.0 - sc * 0.55)
+
+        ax.scatter(sx, sy, s=sizes, c=star_colors, linewidths=0)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_title("Galaxy Spiral Arms", color="#b0baff", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 30 ────────────────────────────────────────────────────────────────
+
+class AuroraBorealisRenderer(BasePattern):
+    """Pattern 30 — Aurora Borealis (sinusoidal curtain layers on raster image)."""
     name = "Aurora Borealis"
     group = "Nature-Inspired"
 
-class UnderwaterCausticsRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=5, min=2, max=10, step=1,
+                              description="Curtains:"),
+            widgets.FloatSlider(value=3.0, min=1.0, max=8.0, step=0.5,
+                                description="Wave Freq:", readout_format=".1f"),
+            widgets.FloatSlider(value=0.70, min=0.10, max=1.50, step=0.10,
+                                description="Intensity:", readout_format=".1f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_curtains = int(kwargs.get("curtains", 5))
+        freq   = float(kwargs.get("wave_freq", 3.0))
+        intens = float(kwargs.get("intensity", 0.70))
+        seed   = int(kwargs.get("seed", 42))
+        rng    = np.random.default_rng(seed)
+
+        H = W = {"Low": 256, "Medium": 400, "High": 512}.get(resolution, 256)
+
+        # Aurora colour palette: classic polar spectrum
+        aurora_palette = np.array([
+            [0.00, 1.00, 0.40],   # bright green
+            [0.00, 0.80, 0.90],   # teal
+            [0.10, 0.30, 1.00],   # blue
+            [0.70, 0.00, 1.00],   # purple
+            [1.00, 0.00, 0.60],   # magenta
+            [0.00, 0.90, 0.60],   # cyan-green
+        ])
+
+        img = np.zeros((H, W, 3), dtype=float)
+        x_idx = np.arange(W, dtype=float)
+        y_idx = np.arange(H, dtype=float)
+
+        for _ in range(n_curtains):
+            color = aurora_palette[rng.integers(0, len(aurora_palette))]
+
+            # Curtain top edge: primary + secondary sinusoidal wave
+            center_y = rng.uniform(0.20, 0.60) * H
+            amp      = rng.uniform(0.04, 0.10) * H
+            phase    = rng.uniform(0, 2 * np.pi)
+            f2       = freq * rng.uniform(0.7, 1.4)
+
+            wave = (center_y
+                    + amp * np.sin(2 * np.pi * f2 * x_idx / W + phase)
+                    + amp * 0.4 * np.sin(2 * np.pi * f2 * 2.3 * x_idx / W + phase * 1.7))
+
+            # Curtain length (downward fade distance in pixels)
+            c_len = rng.uniform(0.12, 0.32) * H
+
+            # dy[row, col] = pixel_row - wave_top[col]  (H×W)
+            dy = y_idx[:, None] - wave[None, :]
+            curtain = np.where(dy >= 0, np.exp(-dy / (c_len + 1e-6)), 0.0)
+            curtain *= intens * rng.uniform(0.5, 1.0)
+
+            # Shimmer: slight horizontal brightness modulation
+            shimmer = 0.5 + 0.5 * np.sin(2 * np.pi * f2 * 1.8 * x_idx / W + phase * 0.7)
+            curtain *= shimmer[None, :]
+
+            img += curtain[:, :, None] * color[None, None, :]
+
+        # Tone-map: normalise then gamma-brighten
+        img = np.clip(img, 0, None)
+        mx = img.max()
+        if mx > 0:
+            img /= mx
+        img = np.power(img, 0.55)
+        img = np.clip(img, 0, 1)
+
+        # Sparse starfield
+        n_stars = 300
+        sy = rng.integers(0, H, n_stars)
+        sx = rng.integers(0, W, n_stars)
+        sb = rng.uniform(0.5, 1.0, n_stars)
+        for i in range(n_stars):
+            img[sy[i], sx[i]] = np.maximum(img[sy[i], sx[i]], sb[i])
+
+        fig, ax = self._create_figure(figsize=(10, 6), bg_color="#010208")
+        ax.imshow(img, origin="upper", aspect="auto")
+        ax.axis("off")
+        ax.set_title("Aurora Borealis", color="#80ffb0", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 31 ────────────────────────────────────────────────────────────────
+
+class UnderwaterCausticsRenderer(BasePattern):
+    """Pattern 31 — Underwater Caustics (random-direction wave interference)."""
     name = "Underwater Caustics"
     group = "Nature-Inspired"
 
-class SandDuneRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=12, min=4, max=30, step=2,
+                              description="N Sources:"),
+            widgets.FloatSlider(value=18.0, min=5.0, max=40.0, step=1.0,
+                                description="Frequency:", readout_format=".1f"),
+            widgets.FloatSlider(value=2.5, min=1.0, max=5.0, step=0.1,
+                                description="Sharpness:", readout_format=".1f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_src = int(kwargs.get("n_sources", 12))
+        freq  = float(kwargs.get("frequency", 18.0))
+        sharp = float(kwargs.get("sharpness", 2.5))
+        seed  = int(kwargs.get("seed", 42))
+        rng   = np.random.default_rng(seed)
+
+        N = {"Low": 300, "Medium": 450, "High": 600}.get(resolution, 300)
+        x = np.linspace(0, 1, N)
+        y = np.linspace(0, 1, N)
+        X, Y = np.meshgrid(x, y)
+
+        # Sum cosine waves from random directions — interference mimics refraction
+        field = np.zeros((N, N))
+        for _ in range(n_src):
+            angle = rng.uniform(0, 2 * np.pi)
+            kx    = np.cos(angle) * freq * 2 * np.pi
+            ky    = np.sin(angle) * freq * 2 * np.pi
+            phase = rng.uniform(0, 2 * np.pi)
+            field += np.cos(kx * X + ky * Y + phase)
+
+        # Normalise to [0, 1] then power-map to sharpen caustic bright spots
+        field = (field - field.min()) / (field.max() - field.min() + 1e-8)
+        field = np.power(field, sharp)
+
+        # Deep-water blue-teal RGB mapping
+        r_ch = np.clip(field * 0.75 + 0.05, 0, 1)
+        g_ch = np.clip(field * 0.70 + 0.25, 0, 1)
+        b_ch = np.clip(field * 0.45 + 0.45, 0, 1)
+        img  = np.stack([r_ch, g_ch, b_ch], axis=-1)
+
+        fig, ax = self._create_figure(figsize=(8, 8), bg_color="#000a14")
+        ax.imshow(img, origin="lower", interpolation="bilinear", aspect="equal")
+        ax.axis("off")
+        ax.set_title(f"Underwater Caustics  sources={n_src}",
+                     color="#80d0e8", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 32 ────────────────────────────────────────────────────────────────
+
+class SandDuneRenderer(BasePattern):
+    """Pattern 32 — Sand Dune Erosion (cellular automaton saltation model)."""
     name = "Sand Dune Erosion"
     group = "Nature-Inspired"
 
-class CoralReefRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=150, min=30, max=400, step=10,
+                              description="Iterations:"),
+            widgets.FloatSlider(value=0.15, min=0.01, max=0.50, step=0.01,
+                                description="Wind Speed:", readout_format=".2f"),
+            widgets.FloatSlider(value=0.30, min=0.05, max=0.60, step=0.02,
+                                description="Avalanche:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_iter   = int(kwargs.get("iterations", 150))
+        wind     = float(kwargs.get("wind_speed", 0.15))
+        av_thresh = float(kwargs.get("avalanche", 0.30))
+        seed     = int(kwargs.get("seed", 42))
+        rng      = np.random.default_rng(seed)
+
+        N = {"Low": 100, "Medium": 150, "High": 200}.get(resolution, 100)
+
+        # Initial heightfield: random noise + a few pre-formed ridges
+        h = rng.uniform(0.0, 0.4, (N, N))
+        for _ in range(rng.integers(3, 8)):
+            cx = rng.integers(N // 4, 3 * N // 4)
+            h[:, max(0, cx - 4):cx + 4] += rng.uniform(0.2, 0.6)
+        h = np.clip(h, 0, 1)
+
+        for _ in range(n_iter):
+            # ── Saltation: carry a fraction of each cell's height rightward ──
+            q = h * wind * 0.12
+            h = h - q + np.roll(q, 1, axis=1)   # cell j receives from j-1
+
+            # ── Avalanche: redistribute excess slope (angle-of-repose rule) ──
+            # Right-facing slope
+            slope_r  = h - np.roll(h, -1, axis=1)   # h[j] - h[j+1]
+            excess_r = np.clip(slope_r - av_thresh, 0, None)
+            tr       = excess_r * 0.5
+            h        = h - tr + np.roll(tr, 1, axis=1)   # j+1 receives from j
+
+            # Down-facing slope
+            slope_d  = h - np.roll(h, -1, axis=0)
+            excess_d = np.clip(slope_d - av_thresh, 0, None)
+            td       = excess_d * 0.5
+            h        = h - td + np.roll(td, 1, axis=0)
+
+            h = np.clip(h, 0, None)
+
+        # Normalise and map to a sandy palette
+        h = (h - h.min()) / (h.max() - h.min() + 1e-8)
+        r_ch = 0.40 + h * 0.55
+        g_ch = 0.28 + h * 0.52
+        b_ch = 0.08 + h * 0.38
+        img  = np.clip(np.stack([r_ch, g_ch, b_ch], axis=-1), 0, 1)
+
+        fig, ax = self._create_figure(figsize=(9, 7), bg_color="#1a1000")
+        ax.imshow(img, origin="lower", interpolation="bilinear", aspect="auto")
+        ax.axis("off")
+        ax.set_title(f"Sand Dune Erosion  iters={n_iter}",
+                     color="#e8c870", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 33 ────────────────────────────────────────────────────────────────
+
+class CoralReefRenderer(BasePattern):
+    """Pattern 33 — Coral Reef Growth (multi-colony recursive branching)."""
     name = "Coral Reef Growth"
     group = "Nature-Inspired"
 
-class MushroomSporeRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=8, min=3, max=12, step=1,
+                              description="Depth:"),
+            widgets.IntSlider(value=5, min=2, max=8, step=1,
+                              description="N Colonies:"),
+            widgets.FloatSlider(value=0.55, min=0.25, max=0.85, step=0.02,
+                                description="Fan Spread:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        depth      = int(kwargs.get("depth", 8))
+        n_colonies = int(kwargs.get("n_colonies", 5))
+        fan_spread = float(kwargs.get("fan_spread", 0.55))
+        seed       = int(kwargs.get("seed", 42))
+        rng        = np.random.default_rng(seed)
+
+        # Species colour palettes: [trunk, mid, tip]
+        coral_palettes = [
+            ["#cc3300", "#ff6633", "#ffaa80"],   # orange fire coral
+            ["#cc2266", "#ff44aa", "#ffaadd"],   # pink coral
+            ["#0077aa", "#22aadd", "#88ddff"],   # blue coral
+            ["#886633", "#ccaa55", "#eedd99"],   # tan brain coral
+            ["#226633", "#44aa66", "#88dd99"],   # green staghorn
+            ["#880088", "#cc44cc", "#ffaaff"],   # purple sea fan
+        ]
+
+        fig, ax = self._create_figure(figsize=(9, 8), bg_color="#010d1a")
+        seg_list, col_list, lw_list = [], [], []
+
+        for col_i in range(n_colonies):
+            pal        = coral_palettes[col_i % len(coral_palettes)]
+            root_x     = rng.uniform(0.07, 0.93)
+            root_y     = rng.uniform(0.00, 0.12)
+            base_angle = np.pi / 2 + rng.uniform(-0.35, 0.35)
+            init_len   = rng.uniform(0.06, 0.13)
+
+            def _coral(x, y, angle, length, d, _pal=pal):
+                if d == 0 or length < 0.004:
+                    return
+                x2 = x + length * np.cos(angle)
+                y2 = y + length * np.sin(angle)
+                t  = 1.0 - d / depth
+                c_idx = min(int(t * len(_pal)), len(_pal) - 1)
+                seg_list.append([[x, y], [x2, y2]])
+                col_list.append(_pal[c_idx])
+                lw_list.append(max(0.3, d * 0.50))
+
+                n_sub = 2 if rng.random() < 0.55 else 3
+                half  = fan_spread * np.pi / 2
+                for ba in np.linspace(angle - half, angle + half, n_sub):
+                    _coral(x2, y2,
+                           ba + rng.uniform(-0.08, 0.08),
+                           length * rng.uniform(0.57, 0.73),
+                           d - 1, _pal)
+
+            _coral(root_x, root_y, base_angle, init_len, depth)
+
+        if seg_list:
+            lc = mc.LineCollection(seg_list, colors=col_list,
+                                   linewidths=lw_list, alpha=0.90,
+                                   capstyle="round")
+            ax.add_collection(lc)
+
+        # Sandy seafloor strip
+        sx = np.linspace(0, 1, 300)
+        sy = rng.uniform(-0.005, 0.005, 300)
+        ax.fill_between(sx, -0.01, sy + 0.025, color="#7a6240", alpha=0.70, zorder=0)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        ax.set_title("Coral Reef Growth", color="#ff9f60", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 34 ────────────────────────────────────────────────────────────────
+
+class MushroomSporeRenderer(BasePattern):
+    """Pattern 34 — Mushroom Spore Map (Voronoi distance-field + ring texture)."""
     name = "Mushroom Spore Map"
     group = "Nature-Inspired"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=40, min=8, max=120, step=4,
+                              description="N Spores:"),
+            widgets.FloatSlider(value=0.50, min=0.10, max=1.50, step=0.05,
+                                description="Ring Freq:", readout_format=".2f"),
+            widgets.FloatSlider(value=0.40, min=0.00, max=1.00, step=0.05,
+                                description="Noise Blend:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_spores   = int(kwargs.get("n_spores", 40))
+        ring_freq  = float(kwargs.get("ring_freq", 0.50))
+        noise_blend = float(kwargs.get("noise_blend", 0.40))
+        seed       = int(kwargs.get("seed", 42))
+        rng        = np.random.default_rng(seed)
+
+        from scipy.spatial import cKDTree
+
+        N = {"Low": 256, "Medium": 384, "High": 512}.get(resolution, 256)
+
+        pts  = rng.uniform(0.02, 0.98, (n_spores, 2))
+        tree = cKDTree(pts)
+
+        gx = np.linspace(0, 1, N)
+        gy = np.linspace(0, 1, N)
+        GX, GY = np.meshgrid(gx, gy)
+        qpts = np.column_stack([GX.ravel(), GY.ravel()])
+
+        k      = min(2, n_spores)
+        dists, idxs = tree.query(qpts, k=k)
+        d1     = dists[:, 0].reshape(N, N)
+        d2     = (dists[:, 1].reshape(N, N) if k >= 2 else d1 * 1.5)
+        idx1   = idxs[:, 0].reshape(N, N)
+
+        # Concentric rings centred on each spore
+        rings  = np.sin(d1 * ring_freq * 60 * np.pi) * 0.5 + 0.5
+
+        # Layered sine noise (approximates Perlin without extra dependencies)
+        ox = rng.uniform(0, 100)
+        oy = rng.uniform(0, 100)
+        noise = (np.sin((GX + ox) * 12) * np.cos((GY + oy) * 12)
+                 + 0.5  * np.sin((GX + ox) * 25 + 0.7) * np.cos((GY + oy) * 22 + 1.3)
+                 + 0.25 * np.sin((GX + ox) * 51 + 2.1) * np.cos((GY + oy) * 47 + 0.9))
+        noise = (noise - noise.min()) / (noise.max() - noise.min() + 1e-8)
+
+        # Cell boundary darkening: (d2-d1) is small at Voronoi edges
+        edge_mask = np.clip((d2 - d1) / (d1 + 0.02), 0, 1) ** 0.35
+
+        # Per-cell colour shift using spore index
+        cell_var = (idx1 % 9) / 9.0 * 0.18
+
+        # Combine rings, noise, edges
+        field = (rings * (1.0 - noise_blend) + noise * noise_blend) * edge_mask
+        field = np.clip(field + cell_var, 0, 1)
+
+        # Earthy mushroom palette: cream/tan/ochre/brown
+        r_ch = np.clip(0.55 + field * 0.42, 0, 1)
+        g_ch = np.clip(0.38 + field * 0.36, 0, 1)
+        b_ch = np.clip(0.18 + field * 0.20, 0, 1)
+        img  = np.stack([r_ch, g_ch, b_ch], axis=-1)
+
+        fig, ax = self._create_figure(figsize=(8, 8), bg_color="#1a0f08")
+        ax.imshow(img, origin="lower", interpolation="bilinear", aspect="equal")
+        ax.axis("off")
+        ax.set_title(f"Mushroom Spore Map  n={n_spores}",
+                     color="#d4a46a", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Stubs 35–40 ───────────────────────────────────────────────────────────────
 
 class TerrainHeightRenderer(_StubMixin, BasePattern):
     name = "Terrain Height Map"
