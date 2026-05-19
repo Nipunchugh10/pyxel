@@ -1,8 +1,8 @@
-# 🎨 Pyxel Canvas
+# Pyxel Canvas
 
 ### 100 Stunning 2D & 3D Patterns in a Single Jupyter Notebook
 
-> ⚠️ **This project is currently under active development.**
+> **This project is currently under active development.**
 > The engine, UI, and architecture are complete. Pattern implementations are being added progressively.
 
 ---
@@ -19,11 +19,22 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 
 | Milestone | Status |
 |-----------|--------|
-| Project structure & folder hierarchy | ✅ Complete |
-| Core engine (`BasePattern`, color palettes, export utilities) | ✅ Complete |
-| 100 pattern class stubs registered | ✅ Complete |
-| Interactive UI (dropdowns, controls, render/export buttons) | ✅ Complete |
-| Pattern implementations | 🔧 **20 / 100** — in progress |
+| Project structure & folder hierarchy | Complete |
+| Core engine (`BasePattern`, color palettes, export utilities) | Complete |
+| 100 pattern class stubs registered | Complete |
+| Interactive UI (dropdowns, controls, render/export buttons) | Complete |
+| Pattern implementations | **34 / 100** — in progress |
+
+**Progress by group:**
+
+| Group | Done | Total |
+|-------|------|-------|
+| Geometric & Mathematical (1–20) | 20 | 20 |
+| Nature-Inspired (21–40) | 14 | 20 |
+| Abstract & Artistic (41–60) | 0 | 20 |
+| 2D Game-Style (61–70) | 0 | 10 |
+| 3D Objects & Sculptures (71–90) | 0 | 20 |
+| Scientific & Simulation (91–100) | 0 | 10 |
 
 ---
 
@@ -32,30 +43,30 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 ```
 visual_engine/
 │
-├── notebook.ipynb               ← Single entry point — run this
+├── notebook.ipynb               <- Single entry point — run this
 │
 ├── engines/
-│   ├── renderer.py              ← BasePattern ABC (render + get_controls)
-│   ├── color_utils.py           ← 8 preset color palettes + utilities
-│   ├── animation.py             ← Animation loop helpers
-│   └── camera.py                ← 2D viewport (pan, zoom, meshgrid)
+│   ├── renderer.py              <- BasePattern ABC (render + get_controls)
+│   ├── color_utils.py           <- 8 preset color palettes + utilities
+│   ├── animation.py             <- Animation loop helpers
+│   └── camera.py                <- 2D viewport (pan, zoom, meshgrid)
 │
 ├── patterns/
-│   ├── __init__.py              ← PATTERNS registry (100 entries) + CATEGORIES
-│   ├── fractals.py              ← Geometric & Mathematical (1–20)
-│   ├── nature.py                ← Nature-Inspired (21–40)
-│   ├── abstract.py              ← Abstract & Artistic (41–60)
-│   ├── game2d.py                ← 2D Game-Style (61–70)
-│   ├── objects3d.py             ← 3D Objects & Sculptures (71–90)
-│   └── scientific.py            ← Scientific & Simulation (91–100)
+│   ├── __init__.py              <- PATTERNS registry (100 entries) + CATEGORIES
+│   ├── fractals.py              <- Geometric & Mathematical (1–20)
+│   ├── nature.py                <- Nature-Inspired (21–40)
+│   ├── abstract.py              <- Abstract & Artistic (41–60)
+│   ├── game2d.py                <- 2D Game-Style (61–70)
+│   ├── objects3d.py             <- 3D Objects & Sculptures (71–90)
+│   └── scientific.py            <- Scientific & Simulation (91–100)
 │
 ├── utils/
-│   ├── export.py                ← PNG / GIF / MP4 export functions
-│   └── physics.py               ← Shared physics helpers
+│   ├── export.py                <- PNG / GIF / MP4 export functions
+│   └── physics.py               <- Shared physics helpers
 │
-├── assets/                      ← Textures, fonts, static resources
-├── shaders/                     ← GLSL shader files
-└── exports/                     ← Rendered outputs (auto-created)
+├── assets/                      <- Textures, fonts, static resources
+├── shaders/                     <- GLSL shader files
+└── exports/                     <- Rendered outputs (auto-created)
 ```
 
 ---
@@ -82,10 +93,59 @@ visual_engine/
 ## How It Works
 
 - Each pattern is a Python class inheriting from `BasePattern`
-- Every class implements `render(**kwargs)` and `get_controls()` 
+- Every class implements `render(**kwargs)` and `get_controls()`
 - The notebook UI dynamically loads patterns via a lazy-loading cache
 - Universal controls (palette, speed, resolution) + pattern-specific controls
 - Export any render as PNG, GIF, or MP4 with one click
+
+---
+
+## Implemented Patterns
+
+### Geometric & Mathematical (1–20) — 20/20 complete
+
+| # | Pattern | Key Technique |
+|---|---------|---------------|
+| 1 | Mandelbrot Fractal Explorer | Vectorised escape-time iteration on complex grid |
+| 2 | Julia Set Animator | Same escape-time with fixed `c`, variable `z0` plane |
+| 3 | Sierpinski Triangle | Chaos game — random barycentric contraction |
+| 4 | Koch Snowflake | Iterative segment subdivision + rotation |
+| 5 | Penrose Tiling | Penrose P3 rhomb deflation with Robinson triangles |
+| 6 | Voronoi Diagram | `scipy.cKDTree` rasterised nearest-neighbour field |
+| 7 | Fibonacci Spiral | Golden-angle sunflower point placement |
+| 8 | Dragon Curve | Iterative fold sequence + `LineCollection` |
+| 9 | Hilbert Curve | `d2xy` space-filling index mapping |
+| 10 | L-System Tree | Prusinkiewicz turtle-graphics branching grammar |
+| 11 | Apollonius Gasket | BFS + Descartes' Circle Theorem curvature iteration |
+| 12 | Lissajous Figures | Parametric `x=sin(at+δ)`, `y=sin(bt)` |
+| 13 | Rose Curves | Polar `r=cos(p/q·θ)`, GCD-reduced period |
+| 14 | Chaos Attractor (Lorenz) | RK4 integration of σ/ρ/β system, x–z projection |
+| 15 | Wave Interference Pattern | Superposition of n coherent point sources via `imshow` |
+| 16 | Hypocycloid & Epicycloid | Parametric rolling-circle equations, GCD period |
+| 17 | Truchet Tiles | Random binary orientation matrix, `Arc` patches |
+| 18 | Hexagonal Grid Art | Axial-coordinate pointy-top tessellation, 4 colour modes |
+| 19 | Spirograph Generator | Layered hypotrochoids with linearly-spaced pen distances |
+| 20 | Parametric Curve Art | Gallery of 8 named curves with singularity guard |
+
+### Nature-Inspired (21–40) — 14/20 complete
+
+| # | Pattern | Key Technique |
+|---|---------|---------------|
+| 21 | Cherry Blossom Particle Scene | Recursive tree `LineCollection` + wind-drift petal scatter |
+| 22 | Procedural Tree Generator | Configurable recursive branching, palette gradient by depth |
+| 23 | Reaction-Diffusion (Turing Patterns) | Gray-Scott model, 5-point Laplacian via `np.roll` |
+| 24 | Flocking Birds (Boids Lite) | Fully vectorised sep/align/cohesion via (N,N,2) diff tensor |
+| 25 | Lightning Bolt Generator | Recursive midpoint displacement + probabilistic branching |
+| 26 | Snowflake Crystal Growth | 6-fold symmetric recursive arms, glow `LineCollection` |
+| 27 | Leaf Venation Simulation | Space colonisation: elliptical attractor field, kill-radius |
+| 28 | Fire Particle System | Beta-distributed age → height + temperature colour mapping |
+| 29 | Galaxy Spiral Arms | Logarithmic spiral `r=r₀·exp(b·θ)`, warm→cool star gradient |
+| 30 | Aurora Borealis | Raster curtain layers: sinusoidal edge + exponential fade |
+| 31 | Underwater Caustics | Sum of N random-direction cosine waves, power-law sharpening |
+| 32 | Sand Dune Erosion | Cellular automaton: saltation via `np.roll` + avalanche rule |
+| 33 | Coral Reef Growth | Multi-colony recursive branching, 6 species palettes |
+| 34 | Mushroom Spore Map | `cKDTree` 2-NN Voronoi + ring texture + noise blend |
+| 35–40 | *(coming soon)* | Terrain Height Map, Waterfall Flow, Tornado Vortex, Cloud Formation, River Delta, Moth Wing |
 
 ---
 
@@ -101,7 +161,7 @@ visual_engine/
 | 91–100 | Scientific & Simulation | 10 |
 
 <details>
-<summary><b>📋 Full list of all 100 patterns</b></summary>
+<summary><b>Full list of all 100 patterns</b></summary>
 
 ### Geometric & Mathematical (1–20)
 1. Mandelbrot Fractal Explorer
