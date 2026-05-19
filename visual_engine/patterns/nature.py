@@ -376,7 +376,7 @@ class FlockingBirdsRenderer(BasePattern):
 
 # ── Pattern 25 ────────────────────────────────────────────────────────────────
 
-class LightningdRenderer(BasePattern):
+class LightningBoltRenderer(BasePattern):
     """Pattern 25 — Lightning Bolt Generator (recursive midpoint displacement)."""
     name = "Lightning Bolt Generator"
     group = "Nature-Inspired"
