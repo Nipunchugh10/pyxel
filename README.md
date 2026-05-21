@@ -23,14 +23,14 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **34 / 100** — in progress |
+| Pattern implementations | **40 / 100** — in progress |
 
 **Progress by group:**
 
 | Group | Done | Total |
 |-------|------|-------|
 | Geometric & Mathematical (1–20) | 20 | 20 |
-| Nature-Inspired (21–40) | 14 | 20 |
+| Nature-Inspired (21–40) | 20 | 20 |
 | Abstract & Artistic (41–60) | 0 | 20 |
 | 2D Game-Style (61–70) | 0 | 10 |
 | 3D Objects & Sculptures (71–90) | 0 | 20 |
