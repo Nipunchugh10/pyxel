@@ -1234,28 +1234,582 @@ class MushroomSporeRenderer(BasePattern):
         plt.close(fig)
 
 
-# ── Stubs 35–40 ───────────────────────────────────────────────────────────────
+# ── Pattern 35 ────────────────────────────────────────────────────────────────
 
-class TerrainHeightRenderer(_StubMixin, BasePattern):
+class TerrainHeightRenderer(BasePattern):
+    """Pattern 35 — Terrain Height Map (fractal Brownian motion + hypsometric colour)."""
     name = "Terrain Height Map"
     group = "Nature-Inspired"
 
-class WaterfallFlowRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=7, min=2, max=10, step=1,
+                              description="Octaves:"),
+            widgets.FloatSlider(value=0.55, min=0.20, max=0.90, step=0.05,
+                                description="Roughness:", readout_format=".2f"),
+            widgets.FloatSlider(value=0.35, min=0.00, max=0.65, step=0.05,
+                                description="Water Level:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        octaves   = int(kwargs.get("octaves", 7))
+        roughness = float(kwargs.get("roughness", 0.55))
+        water_lvl = float(kwargs.get("water_level", 0.35))
+        seed      = int(kwargs.get("seed", 42))
+        rng       = np.random.default_rng(seed)
+
+        N = {"Low": 256, "Medium": 384, "High": 512}.get(resolution, 256)
+        x = np.linspace(0, 1, N)
+        y = np.linspace(0, 1, N)
+        X, Y = np.meshgrid(x, y)
+
+        # Fractal Brownian motion: sum octaves of layered sine noise
+        h = np.zeros((N, N))
+        amp = 1.0
+        freq = 3.0
+        total_amp = 0.0
+        for _ in range(octaves):
+            ox = rng.uniform(0, 100)
+            oy = rng.uniform(0, 100)
+            ph = rng.uniform(0, 2 * np.pi)
+            h += amp * (np.sin((X + ox) * freq * 2 * np.pi + ph)
+                        * np.cos((Y + oy) * freq * 2 * np.pi + ph * 1.37))
+            total_amp += amp
+            amp  *= roughness
+            freq *= 2.0
+
+        h = (h / total_amp) * 0.5 + 0.5
+        h = np.clip(h, 0, 1)
+
+        # Hypsometric colouring: water → sand/green → brown → grey → snow
+        w_mask  = h <= water_lvl
+        lo_mask = (h > water_lvl)        & (h <= water_lvl + 0.18)
+        mi_mask = (h > water_lvl + 0.18) & (h <= water_lvl + 0.42)
+        hi_mask = h > water_lvl + 0.42
+
+        r_ch = np.zeros((N, N))
+        g_ch = np.zeros((N, N))
+        b_ch = np.zeros((N, N))
+
+        t_w = h / (water_lvl + 1e-8)
+        r_ch = np.where(w_mask, 0.04 + t_w * 0.08, r_ch)
+        g_ch = np.where(w_mask, 0.12 + t_w * 0.22, g_ch)
+        b_ch = np.where(w_mask, 0.50 + t_w * 0.42, b_ch)
+
+        t_l = (h - water_lvl) / 0.18
+        r_ch = np.where(lo_mask, 0.70 - t_l * 0.35, r_ch)
+        g_ch = np.where(lo_mask, 0.60 - t_l * 0.05, g_ch)
+        b_ch = np.where(lo_mask, 0.22 - t_l * 0.17, b_ch)
+
+        t_m = (h - (water_lvl + 0.18)) / 0.24
+        r_ch = np.where(mi_mask, 0.35 + t_m * 0.28, r_ch)
+        g_ch = np.where(mi_mask, 0.55 - t_m * 0.30, g_ch)
+        b_ch = np.where(mi_mask, 0.05 + t_m * 0.05, b_ch)
+
+        t_h = np.clip((h - (water_lvl + 0.42)) / max(1.0 - water_lvl - 0.42, 0.01), 0, 1)
+        r_ch = np.where(hi_mask, 0.63 + t_h * 0.37, r_ch)
+        g_ch = np.where(hi_mask, 0.25 + t_h * 0.75, g_ch)
+        b_ch = np.where(hi_mask, 0.10 + t_h * 0.90, b_ch)
+
+        img = np.clip(np.stack([r_ch, g_ch, b_ch], axis=-1), 0, 1)
+
+        fig, ax = self._create_figure(figsize=(9, 8), bg_color="#03080f")
+        ax.imshow(img, origin="lower", interpolation="bilinear", aspect="auto")
+        # Shoreline contour + subtle elevation bands
+        ax.contour(h, levels=[water_lvl], colors="#a0c8ff",
+                   linewidths=0.9, alpha=0.60)
+        if water_lvl < 0.85:
+            elev_levels = np.linspace(water_lvl + 0.06, 0.92, 5)
+            ax.contour(h, levels=elev_levels, colors="k",
+                       linewidths=0.28, alpha=0.28)
+        ax.axis("off")
+        ax.set_title(f"Terrain Height Map  octaves={octaves}",
+                     color="#c8dce8", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 36 ────────────────────────────────────────────────────────────────
+
+class WaterfallFlowRenderer(BasePattern):
+    """Pattern 36 — Waterfall Flow (gravity-driven stream paths + spray)."""
     name = "Waterfall Flow"
     group = "Nature-Inspired"
 
-class TornadoVortexRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=70, min=20, max=160, step=10,
+                              description="N Streams:"),
+            widgets.IntSlider(value=110, min=30, max=250, step=10,
+                              description="Steps:"),
+            widgets.FloatSlider(value=0.014, min=0.004, max=0.035, step=0.001,
+                                description="Step Size:", readout_format=".3f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_streams = int(kwargs.get("n_streams", 70))
+        n_steps   = int(kwargs.get("steps", 110))
+        step_size = float(kwargs.get("step_size", 0.014))
+        seed      = int(kwargs.get("seed", 42))
+        rng       = np.random.default_rng(seed)
+
+        N = {"Low": 256, "Medium": 384, "High": 512}.get(resolution, 256)
+        xg = np.linspace(0, 1, N)
+        yg = np.linspace(0, 1, N)
+        X, Y = np.meshgrid(xg, yg)
+
+        # ── Rocky cliff background (raster) ──────────────────────────────────
+        tex = np.zeros((N, N))
+        for k in range(5):
+            f  = 4 * 2 ** k
+            ox = rng.uniform(0, 50)
+            oy = rng.uniform(0, 50)
+            tex += (0.55 ** k) * (
+                np.sin((X + ox) * f * np.pi)
+                * np.cos((Y + oy) * f * np.pi) * 0.5 + 0.5
+            )
+        tex = (tex - tex.min()) / (tex.max() - tex.min() + 1e-8)
+
+        rock_r = 0.22 + tex * 0.28
+        rock_g = 0.20 + tex * 0.24
+        rock_b = 0.16 + tex * 0.20
+        pool = Y < 0.18
+        rock_r = np.where(pool, 0.06 + tex * 0.08, rock_r)
+        rock_g = np.where(pool, 0.14 + tex * 0.12, rock_g)
+        rock_b = np.where(pool, 0.32 + tex * 0.28, rock_b)
+        bg_img = np.clip(np.stack([rock_r, rock_g, rock_b], axis=-1), 0, 1)
+
+        fig, ax = self._create_figure(figsize=(7, 9), bg_color="#080e14")
+        ax.imshow(bg_img, origin="lower", extent=[0, 1, 0, 1], aspect="auto",
+                  interpolation="bilinear", zorder=0)
+
+        # ── Stream paths (LineCollection) ────────────────────────────────────
+        ctr_x = 0.50 + rng.uniform(-0.05, 0.05)
+        ctr_w = 0.28 + rng.uniform(-0.04, 0.04)
+        all_segs, all_cols, all_lws = [], [], []
+
+        for _ in range(n_streams):
+            px    = ctr_x + rng.uniform(-ctr_w / 2, ctr_w / 2)
+            py    = rng.uniform(0.88, 0.98)
+            phase = rng.uniform(0, 2 * np.pi)
+            sway  = rng.uniform(0.002, 0.009)
+            prev  = [px, py]
+
+            for si in range(n_steps):
+                # Gravity-driven descent with sinusoidal lateral sway
+                dy = -step_size * (1.0 + (1.0 - py) * 0.60)
+                dx =  sway * np.sin(phase + si * 0.28)
+                px = np.clip(px + dx, 0.02, 0.98)
+                py = py + dy
+                if py < 0.02:
+                    break
+                curr = [px, py]
+                t = 1.0 - py    # 0 = at top, 1 = at pool
+                all_segs.append([prev, curr])
+                all_cols.append((0.72 + t * 0.28, 0.87 + t * 0.13, 1.0,
+                                 min(1.0, 0.28 + t * 0.60)))
+                all_lws.append(max(0.25, 1.1 - t * 0.75))
+                prev = curr
+
+        if all_segs:
+            lc = mc.LineCollection(all_segs, colors=all_cols,
+                                   linewidths=all_lws, capstyle="round", zorder=2)
+            ax.add_collection(lc)
+
+        # ── Spray / mist cloud at pool base ──────────────────────────────────
+        n_sp = 1400
+        sx = np.clip(rng.normal(ctr_x, ctr_w * 0.5, n_sp), 0.04, 0.96)
+        sy = rng.beta(1.5, 3.5, n_sp) * 0.24
+        sa = rng.uniform(0.04, 0.28, n_sp)
+        spray_c = np.column_stack([
+            np.full(n_sp, 0.84), np.full(n_sp, 0.92),
+            np.ones(n_sp), sa,
+        ])
+        ax.scatter(sx, sy, s=rng.uniform(6, 50, n_sp),
+                   c=spray_c, linewidths=0, zorder=3)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        ax.set_title("Waterfall Flow", color="#a0c8e8", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 37 ────────────────────────────────────────────────────────────────
+
+class TornadoVortexRenderer(BasePattern):
+    """Pattern 37 — Tornado Vortex (cylindrical particle vortex with funnel taper)."""
     name = "Tornado Vortex"
     group = "Nature-Inspired"
 
-class CloudFormationRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=5000, min=500, max=12000, step=500,
+                              description="Particles:"),
+            widgets.FloatSlider(value=2.0, min=0.5, max=5.0, step=0.2,
+                                description="Vortex Str:", readout_format=".1f"),
+            widgets.FloatSlider(value=0.08, min=0.02, max=0.35, step=0.02,
+                                description="Funnel Top:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_part   = int(kwargs.get("particles", 5000))
+        vstr     = float(kwargs.get("vortex_str", 2.0))
+        funnel_t = float(kwargs.get("funnel_top", 0.08))
+        seed     = int(kwargs.get("seed", 42))
+        rng      = np.random.default_rng(seed)
+
+        # Height ∈ [0,1]; funnel radius linearly widens toward base
+        py      = rng.uniform(0.0, 1.0, n_part)
+        funnel_r = funnel_t + (1.0 - py) * (0.42 - funnel_t)
+
+        # Radial distance: concentrated near funnel wall with Gaussian spread
+        r_frac = np.abs(rng.normal(1.0, 0.25, n_part))
+        r      = np.clip(r_frac * funnel_r, 0.0, 0.55)
+        theta  = rng.uniform(0, 2 * np.pi, n_part)
+        # Vortex twist proportional to height and vstr
+        twist  = vstr * py * 2 * np.pi
+        px     = 0.5 + r * np.cos(theta + twist)
+
+        mask = (px > 0.01) & (px < 0.99)
+        px_v, py_v, r_v = px[mask], py[mask], r[mask]
+
+        # Colour: bright white core → dark grey debris wall; fade near ground
+        t_r   = np.clip(r_v / 0.45, 0, 1)
+        col_r = np.clip(1.00 - t_r * 0.80, 0, 1) * (0.45 + 0.55 * py_v)
+        col_g = np.clip(0.96 - t_r * 0.72, 0, 1) * (0.45 + 0.55 * py_v)
+        col_b = np.clip(0.92 - t_r * 0.60, 0, 1) * (0.45 + 0.55 * py_v)
+        alpha  = np.clip(rng.uniform(0.20, 0.85, len(px_v)), 0.1, 1.0)
+        colors = np.column_stack([col_r, col_g, col_b, alpha])
+        sizes  = np.clip((1.0 - t_r) * 15 + rng.uniform(0.5, 4, len(px_v)), 0.5, 28)
+
+        # Stormy sky gradient background
+        H2  = {"Low": 256, "Medium": 384, "High": 512}.get(resolution, 256)
+        bg_y = np.linspace(0, 1, H2)[:, None] * np.ones((H2, H2))
+        bg_img = np.clip(np.stack([
+            0.05 + (1.0 - bg_y) * 0.06,
+            0.05 + (1.0 - bg_y) * 0.06,
+            0.10 + (1.0 - bg_y) * 0.08,
+        ], axis=-1), 0, 1)
+
+        fig, ax = self._create_figure(figsize=(6, 9), bg_color="#050608")
+        ax.imshow(bg_img, origin="lower", extent=[0, 1, 0, 1], aspect="auto",
+                  interpolation="bilinear", zorder=0)
+        ax.scatter(px_v, py_v, s=sizes, c=colors, linewidths=0, zorder=2)
+
+        # Funnel outline
+        y_line = np.linspace(0, 1, 300)
+        r_line = funnel_t + (1.0 - y_line) * (0.42 - funnel_t)
+        ax.plot(0.5 + r_line, y_line, color="#8090a8", lw=0.7, alpha=0.25, zorder=3)
+        ax.plot(0.5 - r_line, y_line, color="#8090a8", lw=0.7, alpha=0.25, zorder=3)
+
+        # Ground debris scatter
+        n_deb = 600
+        dx = rng.uniform(0, 1, n_deb)
+        dy = rng.uniform(0, 0.06, n_deb)
+        dc = rng.uniform(0.30, 0.60, n_deb)
+        da = rng.uniform(0.10, 0.50, n_deb)
+        ax.scatter(dx, dy, s=rng.uniform(1, 12, n_deb),
+                   c=np.column_stack([dc, dc * 0.85, dc * 0.70, da]),
+                   linewidths=0, zorder=2)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        ax.set_title("Tornado Vortex", color="#c0c8d8", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 38 ────────────────────────────────────────────────────────────────
+
+class CloudFormationRenderer(BasePattern):
+    """Pattern 38 — Cloud Formation (fractal noise thresholding + sky composite)."""
     name = "Cloud Formation"
     group = "Nature-Inspired"
 
-class RiverDeltaRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=6, min=2, max=10, step=1,
+                              description="Octaves:"),
+            widgets.FloatSlider(value=0.60, min=0.20, max=1.40, step=0.05,
+                                description="Density:", readout_format=".2f"),
+            widgets.FloatSlider(value=0.60, min=0.30, max=0.85, step=0.05,
+                                description="Persistence:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        octaves     = int(kwargs.get("octaves", 6))
+        density     = float(kwargs.get("density", 0.60))
+        persistence = float(kwargs.get("persistence", 0.60))
+        seed        = int(kwargs.get("seed", 42))
+        rng         = np.random.default_rng(seed)
+
+        W = {"Low": 400, "Medium": 600, "High": 800}.get(resolution, 400)
+        H = W * 5 // 8
+
+        xg = np.linspace(0, 1, W)
+        yg = np.linspace(0, 1, H)
+        X, Y = np.meshgrid(xg, yg)
+
+        # Multi-octave persistence noise
+        noise = np.zeros((H, W))
+        amp   = 1.0
+        freq  = 2.5
+        total = 0.0
+        for _ in range(octaves):
+            ox = rng.uniform(0, 100)
+            oy = rng.uniform(0, 100)
+            ph = rng.uniform(0, 2 * np.pi)
+            layer = (np.sin((X + ox) * freq * 2 * np.pi + ph)
+                     * np.cos((Y + oy) * freq * 2 * np.pi + ph * 1.71)) * 0.5 + 0.5
+            noise += amp * layer
+            total += amp
+            amp  *= persistence
+            freq *= 2.1
+        noise = np.clip(noise / total, 0, 1)
+
+        # Threshold → cloud alpha with power-law lift
+        threshold   = np.clip(1.0 - density, 0.05, 0.95)
+        cloud_alpha = np.clip((noise - threshold) / max(1.0 - threshold, 0.05), 0, 1)
+        cloud_alpha = np.power(cloud_alpha, 0.50)
+
+        # Sky gradient: warm hazy horizon → deep blue zenith
+        sky_r = np.clip(0.48 - Y * 0.22, 0, 1)
+        sky_g = np.clip(0.67 - Y * 0.24, 0, 1)
+        sky_b = np.clip(0.95 - Y * 0.28, 0, 1)
+
+        # Cloud shadow: offset a copy down-right, darken sky below
+        shad   = np.roll(np.roll(cloud_alpha, 10, axis=0), 7, axis=1) * 0.50
+        shadow = 1.0 - shad * 0.22
+
+        # Cloud luminance (near-white with slight texture variation)
+        cloud_r = 0.96 + noise * 0.04
+        cloud_g = 0.96 + noise * 0.04
+        cloud_b = 0.97 + noise * 0.03
+
+        img_r = sky_r * shadow * (1 - cloud_alpha) + cloud_r * cloud_alpha
+        img_g = sky_g * shadow * (1 - cloud_alpha) + cloud_g * cloud_alpha
+        img_b = sky_b * shadow * (1 - cloud_alpha) + cloud_b * cloud_alpha
+        img = np.clip(np.stack([img_r, img_g, img_b], axis=-1), 0, 1)
+
+        fig, ax = self._create_figure(figsize=(10, 6), bg_color="#1a3a6a")
+        ax.imshow(img, origin="upper", aspect="auto", interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title(f"Cloud Formation  octaves={octaves}",
+                     color="#e0e8ff", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 39 ────────────────────────────────────────────────────────────────
+
+class RiverDeltaRenderer(BasePattern):
+    """Pattern 39 — River Delta Branching (recursive bifurcating channel network)."""
     name = "River Delta Branching"
     group = "Nature-Inspired"
 
-class MothWingRenderer(_StubMixin, BasePattern):
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=9, min=3, max=13, step=1,
+                              description="Depth:"),
+            widgets.FloatSlider(value=0.32, min=0.08, max=0.70, step=0.02,
+                                description="Fan Spread:", readout_format=".2f"),
+            widgets.FloatSlider(value=0.72, min=0.45, max=0.90, step=0.02,
+                                description="Length Decay:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        depth  = int(kwargs.get("depth", 9))
+        spread = float(kwargs.get("fan_spread", 0.32))
+        decay  = float(kwargs.get("length_decay", 0.72))
+        seed   = int(kwargs.get("seed", 42))
+        rng    = np.random.default_rng(seed)
+
+        fig, ax = self._create_figure(figsize=(8, 10), bg_color="#04101c")
+
+        # Sea/estuary and land background fills
+        ax.fill_between([0, 1], 0, 0.30, color="#061c30", alpha=0.95, zorder=0)
+        ax.fill_between([0, 1], 0.30, 1.0, color="#0a1808", alpha=0.80, zorder=0)
+
+        seg_list, t_list, lw_list = [], [], []
+
+        def _channel(x, y, ang, length, d):
+            if d == 0 or length < 0.004:
+                return
+            # ang = deviation from vertical (0 = straight down)
+            x2 = x + length * np.sin(ang)
+            y2 = max(0.01, y - length * np.cos(ang))
+            t  = 1.0 - d / depth
+            seg_list.append([[x, y], [x2, y2]])
+            t_list.append(t)
+            lw_list.append(max(0.3, d * 0.65))
+            if y2 < 0.04:
+                return
+            half = spread * np.pi / 2
+            jit  = rng.uniform(-0.06, 0.06)
+            _channel(x2, y2, ang - half + jit,
+                     length * (decay + rng.uniform(-0.03, 0.03)), d - 1)
+            _channel(x2, y2, ang + half + jit,
+                     length * (decay + rng.uniform(-0.03, 0.03)), d - 1)
+            # Occasional mid-splay tertiary channel
+            if d > 3 and rng.random() < 0.28:
+                _channel(x2, y2, ang + rng.uniform(-half * 0.4, half * 0.4),
+                         length * (decay - 0.08), d - 2)
+
+        _channel(0.50, 0.98, 0.0, 0.16, depth)
+
+        if seg_list:
+            t_arr = np.array(t_list)
+            # Water colour: muddy-brown upstream → teal-blue at sea
+            col_r = np.clip(0.28 - t_arr * 0.12, 0, 1)
+            col_g = np.clip(0.48 + t_arr * 0.18, 0, 1)
+            col_b = np.clip(0.52 + t_arr * 0.38, 0, 1)
+            colors = np.column_stack([col_r, col_g, col_b,
+                                      np.full(len(t_arr), 0.88)])
+            lc = mc.LineCollection(seg_list, colors=colors,
+                                   linewidths=lw_list, capstyle="round", zorder=2)
+            ax.add_collection(lc)
+
+        # Sediment fan scatter
+        n_sed = 700
+        sed_x = np.clip(rng.normal(0.5, 0.24, n_sed), 0.03, 0.97)
+        sed_y = np.clip(rng.beta(1.2, 2.8, n_sed) * 0.35, 0, 0.35)
+        ax.scatter(sed_x, sed_y, s=rng.uniform(1, 10, n_sed),
+                   color="#9a8460", alpha=0.16, linewidths=0, zorder=1)
+
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        ax.set_title("River Delta Branching", color="#88c8b0", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+
+# ── Pattern 40 ────────────────────────────────────────────────────────────────
+
+class MothWingRenderer(BasePattern):
+    """Pattern 40 — Moth Wing Pattern (elliptical wings + eyespots + concentric bands)."""
     name = "Moth Wing Pattern"
     group = "Nature-Inspired"
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=2, min=1, max=4, step=1,
+                              description="N Eyespots:"),
+            widgets.IntSlider(value=8, min=3, max=14, step=1,
+                              description="Band Count:"),
+            widgets.FloatSlider(value=0.55, min=0.20, max=1.00, step=0.05,
+                                description="Pat Scale:", readout_format=".2f"),
+            widgets.IntSlider(value=42, min=0, max=999, description="Seed:"),
+        ]
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
+        n_eyes  = int(kwargs.get("n_eyespots", 2))
+        n_bands = int(kwargs.get("band_count", 8))
+        pat_sc  = float(kwargs.get("pat_scale", 0.55))
+        seed    = int(kwargs.get("seed", 42))
+        rng     = np.random.default_rng(seed)
+
+        N = {"Low": 400, "Medium": 600, "High": 800}.get(resolution, 400)
+        x = np.linspace(-1, 1, N)
+        y = np.linspace(-0.7, 0.7, N)
+        X, Y = np.meshgrid(x, y)
+
+        # Wing shape: fore (upper) + hind (lower) ellipses
+        fore_dist = np.sqrt((X / 0.88) ** 2 + ((Y - 0.12) / 0.52) ** 2)
+        hind_dist = np.sqrt((X / 0.70) ** 2 + ((Y + 0.38) / 0.36) ** 2)
+        wing_mask = (fore_dist < 1.0) | (hind_dist < 1.0)
+        edge_fade = np.clip(
+            np.minimum(
+                1.0 - np.clip(fore_dist - 0.85, 0, 0.15) / 0.15,
+                1.0 - np.clip(hind_dist - 0.85, 0, 0.15) / 0.15,
+            ), 0, 1
+        )
+
+        # Concentric elliptical band field
+        dist_field = np.minimum(fore_dist, hind_dist * 1.05)
+        bands = np.sin(dist_field * n_bands * np.pi * pat_sc) * 0.5 + 0.5
+
+        # Layered texture noise
+        ox, oy = rng.uniform(0, 10, 2)
+        ph = rng.uniform(0, 2 * np.pi)
+        noise  = (np.sin((X + ox) * 9  * np.pi + ph)
+                  * np.cos((Y + oy) * 9  * np.pi + ph * 1.60) * 0.5 + 0.5)
+        noise2 = (np.sin((X + oy) * 20 * np.pi)
+                  * np.cos((Y + ox) * 20 * np.pi) * 0.5 + 0.5)
+        field = bands * 0.65 + (noise * 0.70 + noise2 * 0.30) * 0.35
+
+        # Earthy moth palette: tan → ochre → deep brown
+        r_ch = np.clip(0.38 + field * 0.58, 0, 1)
+        g_ch = np.clip(0.24 + field * 0.44, 0, 1)
+        b_ch = np.clip(0.08 + field * 0.24, 0, 1)
+
+        # Radial wing veins (faint dark lines from body centre)
+        n_veins = 10
+        for k in range(n_veins):
+            ang      = k * np.pi / n_veins - np.pi / 2 + 0.05
+            vx_d, vy_d = np.cos(ang), np.sin(ang)
+            perp_dist = np.abs(-vy_d * X + vx_d * Y)
+            forward   = np.clip(vx_d * X + vy_d * Y, 0, 2)
+            vein_w    = np.exp(-perp_dist ** 2 * 1800) * forward * 0.50
+            vein_w    = np.where(wing_mask, vein_w, 0.0)
+            r_ch -= vein_w * 0.18
+            g_ch -= vein_w * 0.14
+            b_ch -= vein_w * 0.07
+
+        # Bilateral eyespots: symmetrically placed in fore wing
+        eye_ys = np.linspace(-0.05, 0.35, n_eyes)
+        for ey in eye_ys:
+            for ex_sign in (+1, -1):
+                ex = ex_sign * 0.45
+                er = np.sqrt((X - ex) ** 2 + (Y - ey) ** 2)
+                r1 = np.exp(-(er - 0.110) ** 2 / 0.0008)   # outer light ring
+                r2 = np.exp(-(er - 0.065) ** 2 / 0.0005)   # dark ring
+                r3 = np.exp(-(er - 0.028) ** 2 / 0.0002)   # inner iris
+                pu = np.exp(-er ** 2 / 0.0010)              # pupil
+                in_wing = wing_mask & (er < 0.155)
+                r_ch = np.where(in_wing,
+                                r_ch + r1*0.35 - r2*0.25 + r3*0.30 - pu*0.45, r_ch)
+                g_ch = np.where(in_wing,
+                                g_ch + r1*0.28 - r2*0.22 + r3*0.28 - pu*0.45, g_ch)
+                b_ch = np.where(in_wing,
+                                b_ch + r1*0.08 + r2*0.08 + r3*0.15 - pu*0.35, b_ch)
+
+        r_ch = np.clip(r_ch, 0, 1)
+        g_ch = np.clip(g_ch, 0, 1)
+        b_ch = np.clip(b_ch, 0, 1)
+
+        # Composite over dark background
+        alpha = np.where(wing_mask, edge_fade, 0.0)
+        bg = 0.07
+        img_r = r_ch * alpha + bg * (1 - alpha)
+        img_g = g_ch * alpha + bg * (1 - alpha)
+        img_b = (b_ch + 0.01) * alpha + bg * (1 - alpha)
+        img = np.clip(np.stack([img_r, img_g, img_b], axis=-1), 0, 1)
+
+        fig, ax = self._create_figure(figsize=(9, 8), bg_color="#090808")
+        ax.imshow(img, origin="lower", aspect="auto", interpolation="bilinear")
+        ax.axis("off")
+        ax.set_title(f"Moth Wing Pattern  eyespots={n_eyes * 2}",
+                     color="#d4b068", fontsize=13, pad=8)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
