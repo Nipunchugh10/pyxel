@@ -127,7 +127,7 @@ visual_engine/
 | 19 | Spirograph Generator | Layered hypotrochoids with linearly-spaced pen distances |
 | 20 | Parametric Curve Art | Gallery of 8 named curves with singularity guard |
 
-### Nature-Inspired (21–40) — 14/20 complete
+### Nature-Inspired (21–40) — 20/20 complete
 
 | # | Pattern | Key Technique |
 |---|---------|---------------|
@@ -145,7 +145,12 @@ visual_engine/
 | 32 | Sand Dune Erosion | Cellular automaton: saltation via `np.roll` + avalanche rule |
 | 33 | Coral Reef Growth | Multi-colony recursive branching, 6 species palettes |
 | 34 | Mushroom Spore Map | `cKDTree` 2-NN Voronoi + ring texture + noise blend |
-| 35–40 | *(coming soon)* | Terrain Height Map, Waterfall Flow, Tornado Vortex, Cloud Formation, River Delta, Moth Wing |
+| 35 | Terrain Height Map | Multi-octave fBm (layered sine octaves) + hypsometric colour |
+| 36 | Waterfall Flow | Gravity-accelerated stream paths + sinusoidal sway + spray scatter |
+| 37 | Tornado Vortex | Cylindrical particles + height-proportional twist + funnel taper |
+| 38 | Cloud Formation | Persistence noise → threshold + γ lift → sky gradient composite |
+| 39 | River Delta Branching | Recursive binary bifurcation, fan-spread, muddy→teal colour |
+| 40 | Moth Wing Pattern | Elliptical wing masks + concentric bands + bilateral eyespots |
 
 ---
 
