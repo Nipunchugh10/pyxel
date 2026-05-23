@@ -249,9 +249,72 @@ class MandalaRenderer(BasePattern):
         ]
 
 
-class StainedGlassRenderer(_StubMixin, BasePattern):
+
+# ── 44. Stained Glass Voronoi ─────────────────────────────────────────────────
+
+class StainedGlassRenderer(BasePattern):
     name = "Stained Glass Voronoi"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_cells=40, seed=7, border_width=3, **kwargs):
+        from scipy.spatial import cKDTree
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        res = self._resolve_resolution(resolution)
+        rng = np.random.default_rng(int(seed))
+        n = int(n_cells)
+        bw = float(border_width)
+        cmap = ColorUtils.make_colormap(palette)
+
+        pts = rng.uniform(0.02, 0.98, (n, 2))
+        tree = cKDTree(pts)
+
+        lin = np.linspace(0, 1, res)
+        gx, gy = np.meshgrid(lin, lin)
+        grid = np.column_stack([gx.ravel(), gy.ravel()])
+
+        dists, idxs = tree.query(grid, k=2)
+        d1 = dists[:, 0].reshape(res, res)
+        d2 = dists[:, 1].reshape(res, res)
+        cell_idx = idxs[:, 0].reshape(res, res)
+
+        # Assign a colour to each cell
+        cell_colors = np.array([
+            mcolors.to_rgb(cmap(rng.random())) for _ in range(n)
+        ])
+        img = cell_colors[cell_idx]   # (res, res, 3)
+
+        # Voronoi edge border
+        border_thresh = bw / res
+        border_mask = (d2 - d1) < border_thresh
+
+        # Subtle distance-based shading within each cell
+        dist_norm = d1 / (d1.max() + 1e-9)
+        shading = 1.0 - 0.28 * dist_norm
+        img = np.clip(img * shading[:, :, None], 0.0, 1.0)
+        img[border_mask] = 0.0   # black leading lines
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="black")
+        ax.set_facecolor("black")
+        ax.axis("off")
+        ax.imshow(img, origin="upper", interpolation="nearest")
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=40, min=8, max=120, description="n_cells"),
+            widgets.IntSlider(value=7, min=0, max=99, description="seed"),
+            widgets.FloatSlider(value=3.0, min=1.0, max=8.0, step=0.5,
+                                description="border_width"),
+        ]
+
 
 class OpArtRenderer(_StubMixin, BasePattern):
     name = "Op-Art Optical Illusion"
