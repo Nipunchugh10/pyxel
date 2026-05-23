@@ -407,9 +407,84 @@ class OpArtRenderer(BasePattern):
         ]
 
 
-class WatercolorRenderer(_StubMixin, BasePattern):
+
+# ── 46. Watercolor Wash Effect ────────────────────────────────────────────────
+
+class WatercolorRenderer(BasePattern):
     name = "Watercolor Wash Effect"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
+               n_layers=8, n_blobs=12, blur_sigma=30, seed=17, **kwargs):
+        from scipy.ndimage import gaussian_filter
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        res = self._resolve_resolution(resolution)
+        cmap = ColorUtils.make_colormap(palette)
+        sigma = float(blur_sigma) * res / 256.0
+
+        # RGBA canvas — white paper
+        canvas = np.ones((res, res, 4), dtype=float)
+
+        for layer_idx in range(int(n_layers)):
+            t = layer_idx / max(int(n_layers) - 1, 1)
+            base_rgba = np.array(
+                mcolors.to_rgba(cmap(t + rng.uniform(-0.05, 0.05)))
+            )
+
+            # Random rotated ellipses build the blob mask
+            mask = np.zeros((res, res), dtype=float)
+            for _ in range(int(n_blobs)):
+                cx = rng.integers(0, res)
+                cy = rng.integers(0, res)
+                r = rng.integers(res // 12, res // 4)
+                rx = rng.uniform(0.5, 1.8) * r
+                ry = rng.uniform(0.5, 1.8) * r
+                angle = rng.uniform(0, np.pi)
+                ca, sa = np.cos(angle), np.sin(angle)
+                yy, xx = np.mgrid[0:res, 0:res]
+                xr = ca * (xx - cx) + sa * (yy - cy)
+                yr = -sa * (xx - cx) + ca * (yy - cy)
+                mask[(xr / rx) ** 2 + (yr / ry) ** 2 < 1.0] += 1.0
+
+            mask = gaussian_filter(mask, sigma=sigma)
+            peak = mask.max()
+            if peak > 0:
+                mask /= peak
+            mask = mask ** 0.65   # soft watercolour edge curve
+
+            alpha = base_rgba[3] * mask * 0.55
+            for ch in range(3):
+                canvas[:, :, ch] = (canvas[:, :, ch] * (1.0 - alpha)
+                                    + base_rgba[ch] * alpha)
+            canvas[:, :, 3] = 1.0
+
+        # Subtle paper texture
+        paper = rng.uniform(0.94, 1.0, (res, res))
+        canvas[:, :, :3] *= paper[:, :, None]
+        canvas = np.clip(canvas, 0.0, 1.0)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="white")
+        ax.set_facecolor("white")
+        ax.axis("off")
+        ax.imshow(canvas, origin="upper", interpolation="bilinear")
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=8, min=3, max=20, description="n_layers"),
+            widgets.IntSlider(value=12, min=4, max=30, description="n_blobs"),
+            widgets.IntSlider(value=30, min=5, max=80, description="blur_sigma"),
+            widgets.IntSlider(value=17, min=0, max=99, description="seed"),
+        ]
+
 
 class GlitchArtRenderer(_StubMixin, BasePattern):
     name = "Glitch Art Generator"
