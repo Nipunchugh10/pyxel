@@ -172,9 +172,82 @@ class PerlinNoiseRenderer(BasePattern):
         ]
 
 
-class MandalaRenderer(_StubMixin, BasePattern):
+
+# ── 43. Mandala Generator ─────────────────────────────────────────────────────
+
+class MandalaRenderer(BasePattern):
     name = "Mandala Generator"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               symmetry=8, rings=5, seed=42, **kwargs):
+        from engines.color_utils import ColorUtils
+
+        rng = np.random.default_rng(int(seed))
+        n = int(symmetry)
+        n_rings = int(rings)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#05050f")
+        ax.set_facecolor("#05050f")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(-1.15, 1.15)
+        ax.set_ylim(-1.15, 1.15)
+
+        cmap = ColorUtils.make_colormap(palette)
+
+        for ring_idx in range(n_rings):
+            t = ring_idx / max(n_rings - 1, 1)
+            r_base = 0.10 + ring_idx * 0.19
+            # Alternate petal phase by ring
+            phase_offset = (np.pi / n) if ring_idx % 2 else 0.0
+
+            for k in range(n):
+                a_center = 2 * np.pi * k / n + phase_offset
+                half = np.pi / n * 0.88
+
+                # Smooth lens-shaped petal in polar coords
+                theta = np.linspace(a_center - half, a_center + half, 80)
+                r_profile = (r_base
+                             + 0.13 * np.cos((theta - a_center) / half
+                                             * np.pi / 2) ** 2)
+                px = r_profile * np.cos(theta)
+                py = r_profile * np.sin(theta)
+
+                fill_c = cmap(t + 0.04 * rng.random())
+                edge_c = cmap((t + 0.38) % 1.0)
+
+                ax.fill(px, py, color=fill_c, alpha=0.55, zorder=ring_idx)
+                ax.plot(px, py, color=edge_c, alpha=0.85,
+                        linewidth=0.9, zorder=ring_idx + 0.5)
+
+            # Accent dots at petal tips
+            for k in range(n):
+                for r_dot, alpha in [(r_base + 0.14, 0.9), (r_base - 0.01, 0.5)]:
+                    a = 2 * np.pi * k / n + phase_offset
+                    ax.plot(r_dot * np.cos(a), r_dot * np.sin(a), "o",
+                            color=cmap((t + 0.5) % 1.0),
+                            markersize=2.0 + ring_idx * 0.4,
+                            alpha=alpha, zorder=n_rings + 1)
+
+        # Central circle
+        c_t = np.linspace(0, 2 * np.pi, 100)
+        ax.fill(0.06 * np.cos(c_t), 0.06 * np.sin(c_t),
+                color=cmap(0.95), alpha=1.0, zorder=n_rings + 2)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=8, min=4, max=24, step=2, description="symmetry"),
+            widgets.IntSlider(value=5, min=2, max=8, description="rings"),
+            widgets.IntSlider(value=42, min=0, max=200, description="seed"),
+        ]
+
 
 class StainedGlassRenderer(_StubMixin, BasePattern):
     name = "Stained Glass Voronoi"
