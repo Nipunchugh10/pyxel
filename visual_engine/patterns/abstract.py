@@ -111,9 +111,66 @@ class MondrianRenderer(BasePattern):
         ]
 
 
-class PerlinNoiseRenderer(_StubMixin, BasePattern):
+
+# ── 42. Perlin Noise Painting ──────────────────────────────────────────────────
+
+class PerlinNoiseRenderer(BasePattern):
     name = "Perlin Noise Painting"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               octaves=6, scale=4, seed=0, **kwargs):
+        from scipy.ndimage import zoom as nd_zoom
+        from engines.color_utils import ColorUtils
+
+        res = self._resolve_resolution(resolution)
+        rng = np.random.default_rng(int(seed))
+
+        # Fractal Brownian Motion via value noise + cubic zoom upsampling
+        img = np.zeros((res, res), dtype=float)
+        amplitude = 1.0
+        total_amp = 0.0
+        for k in range(int(octaves)):
+            freq = 2 ** k
+            grid_n = max(4, int(scale) * freq + 2)
+            noise_grid = rng.random((grid_n, grid_n)).astype(float)
+            zf = res / grid_n
+            layer = nd_zoom(noise_grid, zf, order=3, mode="wrap")
+            ly, lx = layer.shape
+            if ly >= res and lx >= res:
+                layer = layer[:res, :res]
+            else:
+                pad = np.zeros((res, res))
+                pad[:min(ly, res), :min(lx, res)] = layer[:min(ly, res), :min(lx, res)]
+                layer = pad
+            img += amplitude * layer
+            total_amp += amplitude
+            amplitude *= 0.5
+
+        img /= total_amp
+        img = (img - img.min()) / (img.max() - img.min() + 1e-9)
+
+        cmap = ColorUtils.make_colormap(palette)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#0a0a0a")
+        ax.set_facecolor("#0a0a0a")
+        ax.axis("off")
+        ax.imshow(img, cmap=cmap, origin="upper", interpolation="bilinear",
+                  vmin=0, vmax=1)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=6, min=1, max=10, description="octaves"),
+            widgets.IntSlider(value=4, min=1, max=12, description="scale"),
+            widgets.IntSlider(value=0, min=0, max=99, description="seed"),
+        ]
+
 
 class MandalaRenderer(_StubMixin, BasePattern):
     name = "Mandala Generator"
