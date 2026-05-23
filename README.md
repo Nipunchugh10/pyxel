@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **40 / 100** — in progress |
+| Pattern implementations | **47 / 100** — in progress |
 
 **Progress by group:**
 
@@ -31,7 +31,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 |-------|------|-------|
 | Geometric & Mathematical (1–20) | 20 | 20 |
 | Nature-Inspired (21–40) | 20 | 20 |
-| Abstract & Artistic (41–60) | 0 | 20 |
+| Abstract & Artistic (41–60) | 7 | 20 |
 | 2D Game-Style (61–70) | 0 | 10 |
 | 3D Objects & Sculptures (71–90) | 0 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
@@ -151,6 +151,13 @@ visual_engine/
 | 38 | Cloud Formation | Persistence noise → threshold + γ lift → sky gradient composite |
 | 39 | River Delta Branching | Recursive binary bifurcation, fan-spread, muddy→teal colour |
 | 40 | Moth Wing Pattern | Elliptical wing masks + concentric bands + bilateral eyespots |
+| 41 | Generative Mondrian | Recursive BSP partitioning + Mondrian palette (5:3 white-to-primary weighting) |
+| 42 | Perlin Noise Painting | fBm via scipy.ndimage.zoom cubic upsampling of random value-noise grids |
+| 43 | Mandala Generator | N-fold rotational symmetry, cosine-squared petal profile, concentric rings |
+| 44 | Stained Glass Voronoi | cKDTree 2-NN rasterization + distance shading + d2-d1 border threshold |
+| 45 | Op-Art Optical Illusion | 3 styles: wavy concentric rings, Vasarely grid, hypnotic wavy squares |
+| 46 | Watercolor Wash Effect | Random ellipse masks + Gaussian blur + power-law edge curve + alpha composite |
+| 47 | Glitch Art Generator | Row-shift displacement + RGB chromatic aberration + corrupted data blocks |
 
 ---
 
