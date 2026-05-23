@@ -486,10 +486,143 @@ class WatercolorRenderer(BasePattern):
         ]
 
 
-class GlitchArtRenderer(_StubMixin, BasePattern):
+
+# ── 47. Glitch Art Generator ──────────────────────────────────────────────────
+
+class GlitchArtRenderer(BasePattern):
     name = "Glitch Art Generator"
     group = "Abstract & Artistic"
 
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_slices=40, shift_max=80, channel_shift=15, seed=5, **kwargs):
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        res = self._resolve_resolution(resolution)
+        cmap = ColorUtils.make_colormap(palette)
+
+        # Base image: horizontal palette gradient + vertical interference
+        base = np.zeros((res, res, 3), dtype=float)
+        for i in range(res):
+            base[i, :] = mcolors.to_rgb(cmap(i / res))
+        for j in range(res):
+            overlay = np.array(
+                mcolors.to_rgb(cmap(0.5 + 0.5 * np.sin(j / res * 5 * np.pi)))
+            )
+            base[:, j] = np.clip(base[:, j] * 0.75 + overlay * 0.25, 0, 1)
+
+        # Horizontal row-shift glitch
+        glitched = base.copy()
+        n_s = int(n_slices)
+        shift_m = max(1, int(shift_max))
+        starts = rng.integers(0, res, n_s)
+        heights = rng.integers(1, max(2, res // 16), n_s)
+        shifts = rng.integers(-shift_m, shift_m + 1, n_s)
+
+        for start, height, shift in zip(starts, heights, shifts):
+            end = min(res, start + height)
+            if shift > 0:
+                glitched[start:end, shift:] = base[start:end, :-shift]
+                glitched[start:end, :shift] = base[start:end, -shift:]
+            elif shift < 0:
+                s = -shift
+                glitched[start:end, :res - s] = base[start:end, s:]
+                glitched[start:end, res - s:] = base[start:end, :s]
+
+        # RGB chromatic aberration (channel shift)
+        cs = int(channel_shift)
+        result = np.zeros_like(glitched)
+        result[:, :, 0] = np.roll(glitched[:, :, 0], cs, axis=1)
+        result[:, :, 1] = glitched[:, :, 1]
+        result[:, :, 2] = np.roll(glitched[:, :, 2], -cs, axis=1)
+
+        # Corrupted data blocks
+        for _ in range(rng.integers(8, 25)):
+            bx = rng.integers(0, max(1, res - res // 8))
+            by = rng.integers(0, res)
+            bw = rng.integers(res // 20, max(res // 20 + 1, res // 7))
+            bh = rng.integers(1, max(2, res // 25))
+            result[by:by + bh, bx:bx + bw] = mcolors.to_rgb(cmap(rng.random()))
+
+        # Scanline darkening
+        scanlines = np.ones((res, 1), dtype=float)
+        scanlines[::2] = 0.88
+        result = np.clip(result * scanlines[:, :, None], 0, 1)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="black")
+        ax.set_facecolor("black")
+        ax.axis("off")
+        ax.imshow(result, origin="upper", interpolation="nearest")
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=40, min=5, max=100, description="n_slices"),
+            widgets.IntSlider(value=80, min=5, max=200, description="shift_max"),
+            widgets.IntSlider(value=15, min=0, max=60, description="channel_shift"),
+            widgets.IntSlider(value=5, min=0, max=99, description="seed"),
+        ]
+
+
+# ── Stubs: 48–60 ──────────────────────────────────────────────────────────────
+
+class IsometricCityRenderer(_StubMixin, BasePattern):
+    name = "Isometric City Builder"
+    group = "Abstract & Artistic"
+
+class CircuitBoardRenderer(_StubMixin, BasePattern):
+    name = "Circuit Board Art"
+    group = "Abstract & Artistic"
+
+class TieDyeRenderer(_StubMixin, BasePattern):
+    name = "Tie-Dye Diffusion"
+    group = "Abstract & Artistic"
+
+class GeometricCollageRenderer(_StubMixin, BasePattern):
+    name = "Geometric Collage"
+    group = "Abstract & Artistic"
+
+class PixelSortingRenderer(_StubMixin, BasePattern):
+    name = "Pixel Sorting Art"
+    group = "Abstract & Artistic"
+
+class AsciiArtRenderer(_StubMixin, BasePattern):
+    name = "ASCII Art Renderer"
+    group = "Abstract & Artistic"
+
+class KandinskyRenderer(_StubMixin, BasePattern):
+    name = "Kandinsky Color Study"
+    group = "Abstract & Artistic"
+
+class ZentangleRenderer(_StubMixin, BasePattern):
+    name = "Zentangle Automaton"
+    group = "Abstract & Artistic"
+
+class NeonSignRenderer(_StubMixin, BasePattern):
+    name = "Neon Sign Generator"
+    group = "Abstract & Artistic"
+
+class MosaicTileRenderer(_StubMixin, BasePattern):
+    name = "Mosaic Tile Art"
+    group = "Abstract & Artistic"
+
+class ImpressionistDotsRenderer(_StubMixin, BasePattern):
+    name = "Impressionist Dots"
+    group = "Abstract & Artistic"
+
+class CubistRenderer(_StubMixin, BasePattern):
+    name = "Cubist Portrait Filter"
+    group = "Abstract & Artistic"
+
+class AbstractDripRenderer(_StubMixin, BasePattern):
+    name = "Abstract Expressionism Drip"
+    group = "Abstract & Artistic"
 
 # ── Stub mixin for patterns 48–60 ─────────────────────────────────────────────
 
