@@ -316,9 +316,96 @@ class StainedGlassRenderer(BasePattern):
         ]
 
 
-class OpArtRenderer(_StubMixin, BasePattern):
+
+# ── 45. Op-Art Optical Illusion ───────────────────────────────────────────────
+
+class OpArtRenderer(BasePattern):
     name = "Op-Art Optical Illusion"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Monochrome", speed=1.0,
+               rings=28, wave_amp=0.04, wave_freq=8, style=0, **kwargs):
+        n = int(rings)
+        amp = float(wave_amp)
+        freq = int(wave_freq)
+        style_val = int(style) % 3
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="white")
+        ax.set_facecolor("white")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(-1.1, 1.1)
+        ax.set_ylim(-1.1, 1.1)
+
+        theta = np.linspace(0, 2 * np.pi, 900)
+
+        if style_val == 0:
+            # Concentric wavy rings — Bridget Riley style
+            for i in range(n, 0, -1):
+                t = i / n
+                r = 0.05 + t * 1.0
+                r_wavy = r + amp * np.sin(freq * theta)
+                color = "black" if i % 2 == 0 else "white"
+                ax.fill(r_wavy * np.cos(theta), r_wavy * np.sin(theta),
+                        color=color, zorder=n - i + 1)
+
+        elif style_val == 1:
+            # Vasarely-style grid of concentric distorted circles
+            ax.set_facecolor("black")
+            fig.set_facecolor("black")
+            grid = 9
+            xs = np.linspace(-0.95, 0.95, grid)
+            ys = np.linspace(-0.95, 0.95, grid)
+            t2 = np.linspace(0, 2 * np.pi, 60)
+            for i, gx_val in enumerate(xs):
+                for j, gy_val in enumerate(ys):
+                    dist = np.sqrt(gx_val ** 2 + gy_val ** 2)
+                    r = 0.10 * (1.0 - 0.55 * dist / 1.4)
+                    r_i = r * 0.50
+                    r_w = r + amp * 0.6 * np.sin(freq * t2 + dist * 4)
+                    r_wi = r_i + amp * 0.3 * np.sin(freq * t2 + dist * 4 + np.pi)
+                    color = "white" if (i + j) % 2 == 0 else "#888888"
+                    ax.fill(gx_val + r_w * np.cos(t2),
+                            gy_val + r_w * np.sin(t2),
+                            color=color, zorder=1)
+                    ax.fill(gx_val + r_wi * np.cos(t2),
+                            gy_val + r_wi * np.sin(t2),
+                            color="black", zorder=2)
+
+        else:
+            # Hypnotic concentric squares with wavy sides
+            for i in range(n, 0, -1):
+                t = i / n
+                s = 0.04 + t * 0.98
+                n_pts = 60
+                top_x = np.linspace(-s, s, n_pts)
+                top_y = s + amp * np.sin(freq * np.pi * top_x / s)
+                bot_x = np.linspace(s, -s, n_pts)
+                bot_y = -s - amp * np.sin(freq * np.pi * bot_x / s)
+                rgt_y = np.linspace(s, -s, n_pts)
+                rgt_x = s + amp * np.sin(freq * np.pi * rgt_y / s)
+                lft_y = np.linspace(-s, s, n_pts)
+                lft_x = -s - amp * np.sin(freq * np.pi * lft_y / s)
+                sq_x = np.concatenate([top_x, rgt_x, bot_x, lft_x])
+                sq_y = np.concatenate([top_y, rgt_y, bot_y, lft_y])
+                color = "black" if i % 2 == 0 else "white"
+                ax.fill(sq_x, sq_y, color=color, zorder=n - i + 1)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=28, min=8, max=60, description="rings"),
+            widgets.FloatSlider(value=0.04, min=0.0, max=0.15, step=0.01,
+                                description="wave_amp"),
+            widgets.IntSlider(value=8, min=2, max=20, description="wave_freq"),
+            widgets.IntSlider(value=0, min=0, max=2, description="style"),
+        ]
+
 
 class WatercolorRenderer(_StubMixin, BasePattern):
     name = "Watercolor Wash Effect"
