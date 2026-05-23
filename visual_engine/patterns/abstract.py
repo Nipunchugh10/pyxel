@@ -423,7 +423,11 @@ class WatercolorRenderer(BasePattern):
         rng = np.random.default_rng(int(seed))
         res = self._resolve_resolution(resolution)
         cmap = ColorUtils.make_colormap(palette)
-        sigma = float(blur_sigma) * res / 256.0
+        # Cap sigma so the Gaussian kernel stays bounded at all resolutions
+        sigma = min(float(blur_sigma) * res / 256.0, res * 0.10)
+
+        # Coordinate grid allocated once; reused for every ellipse
+        yy, xx = np.mgrid[0:res, 0:res]
 
         # RGBA canvas — white paper
         canvas = np.ones((res, res, 4), dtype=float)
@@ -444,12 +448,11 @@ class WatercolorRenderer(BasePattern):
                 ry = rng.uniform(0.5, 1.8) * r
                 angle = rng.uniform(0, np.pi)
                 ca, sa = np.cos(angle), np.sin(angle)
-                yy, xx = np.mgrid[0:res, 0:res]
                 xr = ca * (xx - cx) + sa * (yy - cy)
                 yr = -sa * (xx - cx) + ca * (yy - cy)
                 mask[(xr / rx) ** 2 + (yr / ry) ** 2 < 1.0] += 1.0
 
-            mask = gaussian_filter(mask, sigma=sigma)
+            mask = gaussian_filter(mask, sigma=sigma, truncate=2.5)
             peak = mask.max()
             if peak > 0:
                 mask /= peak
