@@ -1,6 +1,6 @@
 """
 Abstract & Artistic Patterns (41–60)
-Patterns 41–47 are fully implemented; 48–60 remain as stubs.
+Patterns 41–54 are fully implemented; 55–60 remain as stubs.
 """
 
 import matplotlib.pyplot as plt
@@ -573,35 +573,675 @@ class GlitchArtRenderer(BasePattern):
         ]
 
 
-# ── Stubs: 48–60 ──────────────────────────────────────────────────────────────
+# ── 48. Isometric City Builder ────────────────────────────────────────────────
 
-class IsometricCityRenderer(_StubMixin, BasePattern):
+class IsometricCityRenderer(BasePattern):
     name = "Isometric City Builder"
     group = "Abstract & Artistic"
 
-class CircuitBoardRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               grid_size=10, max_height=8, seed=7, **kwargs):
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        cmap = ColorUtils.make_colormap(palette)
+        g = int(grid_size)
+        H = int(max_height)
+
+        # Isometric projection constants
+        iso_w, iso_h, z_s = 1.0, 0.5, 0.7
+
+        def to_iso(cx, cy, cz):
+            return np.array([(cx - cy) * iso_w,
+                              (cx + cy) * iso_h + cz * z_s])
+
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor="#0d1117")
+        ax.set_facecolor("#0d1117")
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        # Assign each tile a random height and palette colour
+        grid_data = {}
+        for col in range(g):
+            for row in range(g):
+                grid_data[(col, row)] = (
+                    int(rng.integers(1, H + 1)),
+                    float(rng.uniform(0.0, 1.0)),
+                )
+
+        # Painter's algorithm: tiles with large col+row are furthest back
+        draw_order = sorted(grid_data.keys(), key=lambda cr: -(cr[0] + cr[1]))
+
+        for (col, row) in draw_order:
+            h, t = grid_data[(col, row)]
+            c, r = col, row
+
+            base = np.array(mcolors.to_rgb(cmap(t)))
+            top_c   = np.clip(base * 1.35, 0, 1)
+            right_c = np.clip(base * 0.72, 0, 1)
+            left_c  = np.clip(base * 0.46, 0, 1)
+
+            # Three visible faces of each building block
+            t_face = [to_iso(c,   r,   h), to_iso(c+1, r,   h),
+                      to_iso(c+1, r+1, h), to_iso(c,   r+1, h)]
+            r_face = [to_iso(c+1, r,   0), to_iso(c+1, r+1, 0),
+                      to_iso(c+1, r+1, h), to_iso(c+1, r,   h)]
+            l_face = [to_iso(c,   r+1, 0), to_iso(c+1, r+1, 0),
+                      to_iso(c+1, r+1, h), to_iso(c,   r+1, h)]
+
+            ec, lw = "#0d1117", 0.4
+            ax.add_patch(patches.Polygon(r_face, closed=True,
+                                         facecolor=right_c, edgecolor=ec,
+                                         linewidth=lw))
+            ax.add_patch(patches.Polygon(l_face, closed=True,
+                                         facecolor=left_c, edgecolor=ec,
+                                         linewidth=lw))
+            ax.add_patch(patches.Polygon(t_face, closed=True,
+                                         facecolor=top_c, edgecolor=ec,
+                                         linewidth=lw))
+
+            # Window lights on the right face (every other floor)
+            if h >= 3:
+                for wz in range(1, h, 2):
+                    mid = (to_iso(c+1, r, wz) + to_iso(c+1, r+1, wz)) * 0.5
+                    ax.plot(*mid, "o", color="#fffde7",
+                            markersize=1.4, alpha=0.85, zorder=10)
+
+        pad = 0.5
+        ax.set_xlim(-g * iso_w - pad, g * iso_w + pad)
+        ax.set_ylim(-pad, 2 * g * iso_h + H * z_s + pad)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=10, min=4,  max=20, description="grid_size"),
+            widgets.IntSlider(value=8,  min=1,  max=16, description="max_height"),
+            widgets.IntSlider(value=7,  min=0,  max=99, description="seed"),
+        ]
+
+
+
+# ── 49. Circuit Board Art ─────────────────────────────────────────────────────
+
+class CircuitBoardRenderer(BasePattern):
     name = "Circuit Board Art"
     group = "Abstract & Artistic"
 
-class TieDyeRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_traces=80, n_vias=60, trace_width=2.0, seed=12, **kwargs):
+        rng = np.random.default_rng(int(seed))
+
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor="#0a2e0a")
+        ax.set_facecolor("#0a2e0a")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        trace_col  = "#c8a000"   # copper gold
+        pad_col    = "#e8c400"   # solder pad
+        silk_col   = "#f0f0f0"   # silkscreen white
+        lw_base    = float(trace_width)
+
+        # Snap coordinates to a grid for that PCB look
+        snap = 0.04
+        def snap_v(v):
+            return round(float(v) / snap) * snap
+
+        # Traces: straight lines and L-shaped polylines
+        for _ in range(int(n_traces)):
+            x0 = snap_v(rng.uniform(0.05, 0.95))
+            y0 = snap_v(rng.uniform(0.05, 0.95))
+            if rng.random() < 0.45:
+                # Straight segment (horizontal or vertical)
+                if rng.random() < 0.5:
+                    x1 = snap_v(rng.uniform(0.05, 0.95))
+                    ax.plot([x0, x1], [y0, y0], color=trace_col,
+                            linewidth=lw_base, solid_capstyle="round", alpha=0.85)
+                else:
+                    y1 = snap_v(rng.uniform(0.05, 0.95))
+                    ax.plot([x0, x0], [y0, y1], color=trace_col,
+                            linewidth=lw_base, solid_capstyle="round", alpha=0.85)
+            else:
+                # L-shaped: horizontal leg then vertical leg
+                x1 = snap_v(rng.uniform(0.05, 0.95))
+                y1 = snap_v(rng.uniform(0.05, 0.95))
+                ax.plot([x0, x1, x1], [y0, y0, y1], color=trace_col,
+                        linewidth=lw_base, solid_capstyle="round",
+                        solid_joinstyle="miter", alpha=0.85)
+                # Elbow reinforcement dot
+                ax.plot(x1, y0, "o", color=trace_col,
+                        markersize=lw_base * 1.5, alpha=0.85)
+
+        # Vias / through-holes (annular rings)
+        for _ in range(int(n_vias)):
+            x = snap_v(rng.uniform(0.05, 0.95))
+            y = snap_v(rng.uniform(0.05, 0.95))
+            r_outer = rng.uniform(0.007, 0.013)
+            ax.add_patch(patches.Circle((x, y), r_outer,
+                                        facecolor=pad_col, linewidth=0, zorder=3))
+            ax.add_patch(patches.Circle((x, y), r_outer * 0.42,
+                                        facecolor="#001a00", linewidth=0, zorder=4))
+
+        # IC chip bodies with silkscreen and pin stubs
+        n_chips = int(rng.integers(2, 6))
+        for _ in range(n_chips):
+            cx = rng.uniform(0.08, 0.78)
+            cy = rng.uniform(0.08, 0.78)
+            cw = rng.uniform(0.06, 0.13)
+            ch = rng.uniform(0.05, 0.10)
+            ax.add_patch(patches.FancyBboxPatch(
+                (cx, cy), cw, ch, boxstyle="round,pad=0.003",
+                facecolor="#111111", edgecolor=silk_col,
+                linewidth=0.8, zorder=5))
+            # Pin-1 dot marker
+            ax.plot(cx + 0.006, cy + ch - 0.006, "o",
+                    color=silk_col, markersize=2.2, zorder=6)
+            # Pins along left and right edges
+            n_pins = int(rng.integers(4, 9))
+            pin_step = ch / (n_pins + 1)
+            for p in range(n_pins):
+                py = cy + (p + 1) * pin_step
+                ax.plot([cx - 0.013, cx], [py, py], color=trace_col,
+                        linewidth=lw_base * 0.7, solid_capstyle="butt", zorder=2)
+                ax.plot([cx + cw, cx + cw + 0.013], [py, py], color=trace_col,
+                        linewidth=lw_base * 0.7, solid_capstyle="butt", zorder=2)
+
+        # Corner mounting holes
+        for mx, my in [(0.05, 0.05), (0.95, 0.05), (0.05, 0.95), (0.95, 0.95)]:
+            ax.add_patch(patches.Circle((mx, my), 0.019,
+                                        facecolor="#c0c0c0", linewidth=0, zorder=3))
+            ax.add_patch(patches.Circle((mx, my), 0.010,
+                                        facecolor="#001a00", linewidth=0, zorder=4))
+
+        # Board outline
+        ax.add_patch(patches.FancyBboxPatch(
+            (0.01, 0.01), 0.98, 0.98, boxstyle="round,pad=0.005",
+            facecolor="none", edgecolor="#ffcc00",
+            linewidth=1.5, zorder=7))
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=80,  min=20, max=160, description="n_traces"),
+            widgets.IntSlider(value=60,  min=10, max=120, description="n_vias"),
+            widgets.FloatSlider(value=2.0, min=0.5, max=5.0, step=0.5,
+                                description="trace_width"),
+            widgets.IntSlider(value=12, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 50. Tie-Dye Diffusion ─────────────────────────────────────────────────────
+
+class TieDyeRenderer(BasePattern):
     name = "Tie-Dye Diffusion"
     group = "Abstract & Artistic"
 
-class GeometricCollageRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               n_centers=6, freq=8.0, twist=1.5, seed=42, **kwargs):
+        from engines.color_utils import ColorUtils
+
+        rng = np.random.default_rng(int(seed))
+        res = self._resolve_resolution(resolution)
+        cmap = ColorUtils.make_colormap(palette)
+
+        lin = np.linspace(0.0, 1.0, res)
+        xx, yy = np.meshgrid(lin, lin)
+
+        nc = int(n_centers)
+        cx = rng.uniform(0.05, 0.95, nc)
+        cy = rng.uniform(0.05, 0.95, nc)
+        weights = rng.uniform(0.6, 1.4, nc)
+
+        # Superposition of cosine ripples: each centre emits concentric waves.
+        # A twist term adds spiral chirality by mixing in the polar angle.
+        field = np.zeros((res, res), dtype=float)
+        fv = float(freq)
+        tv = float(twist)
+
+        for i in range(nc):
+            dx = xx - cx[i]
+            dy = yy - cy[i]
+            dist = np.sqrt(dx ** 2 + dy ** 2)
+            angle = np.arctan2(dy, dx)
+            phase = dist * fv * 2.0 * np.pi + tv * angle
+            field += weights[i] * np.cos(phase)
+
+        field = (field - field.min()) / (field.max() - field.min() + 1e-9)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="white")
+        ax.set_facecolor("white")
+        ax.axis("off")
+        ax.imshow(field, cmap=cmap, origin="upper",
+                  interpolation="bilinear", vmin=0, vmax=1)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=6,   min=1,   max=15,  description="n_centers"),
+            widgets.FloatSlider(value=8.0, min=2.0, max=30.0, step=1.0,
+                                description="freq"),
+            widgets.FloatSlider(value=1.5, min=0.0, max=6.0, step=0.25,
+                                description="twist"),
+            widgets.IntSlider(value=42, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 51. Geometric Collage ─────────────────────────────────────────────────────
+
+class GeometricCollageRenderer(BasePattern):
     name = "Geometric Collage"
     group = "Abstract & Artistic"
 
-class PixelSortingRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_shapes=70, alpha=0.72, seed=3, **kwargs):
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        cmap = ColorUtils.make_colormap(palette)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#111111")
+        ax.set_facecolor("#111111")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+
+        al = float(alpha)
+
+        for _ in range(int(n_shapes)):
+            t = float(rng.uniform())
+            color = mcolors.to_rgba(cmap(t), alpha=al)
+            cx = float(rng.uniform(0.0, 1.0))
+            cy = float(rng.uniform(0.0, 1.0))
+            size = float(rng.uniform(0.04, 0.24))
+            shape = int(rng.integers(0, 5))
+
+            if shape == 0:
+                # Circle
+                ax.add_patch(patches.Circle((cx, cy), size * 0.5,
+                                             facecolor=color, linewidth=0))
+
+            elif shape == 1:
+                # Rotated rectangle (manual rotation for centre-pivoted transform)
+                w = size * float(rng.uniform(0.6, 2.0))
+                h = size * float(rng.uniform(0.5, 1.6))
+                angle = float(rng.uniform(0, np.pi))
+                ca, sa = np.cos(angle), np.sin(angle)
+                corners = np.array([[-w/2, -h/2], [w/2, -h/2],
+                                     [w/2,  h/2], [-w/2,  h/2]])
+                rot = corners @ np.array([[ca, sa], [-sa, ca]]) + [cx, cy]
+                ax.add_patch(patches.Polygon(rot, facecolor=color, linewidth=0))
+
+            elif shape == 2:
+                # Equilateral triangle
+                rot = float(rng.uniform(0, 2 * np.pi))
+                angs = np.linspace(rot, rot + 2 * np.pi, 4)[:-1]
+                verts = np.column_stack([cx + size * 0.55 * np.cos(angs),
+                                         cy + size * 0.55 * np.sin(angs)])
+                ax.add_patch(patches.Polygon(verts, facecolor=color, linewidth=0))
+
+            elif shape == 3:
+                # Regular hexagon
+                rot = float(rng.uniform(0, np.pi / 6))
+                angs = np.linspace(rot, rot + 2 * np.pi, 7)[:-1]
+                verts = np.column_stack([cx + size * 0.5 * np.cos(angs),
+                                         cy + size * 0.5 * np.sin(angs)])
+                ax.add_patch(patches.Polygon(verts, facecolor=color, linewidth=0))
+
+            else:
+                # 5-pointed star
+                outer = size * 0.5
+                inner = outer * 0.40
+                rot = float(rng.uniform(0, 2 * np.pi / 5))
+                star_angs = np.linspace(-np.pi/2, -np.pi/2 + 2*np.pi, 11)[:-1]
+                rs = np.where(np.arange(10) % 2 == 0, outer, inner)
+                verts = np.column_stack([cx + rs * np.cos(star_angs + rot),
+                                         cy + rs * np.sin(star_angs + rot)])
+                ax.add_patch(patches.Polygon(verts, facecolor=color, linewidth=0))
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=70,  min=10, max=150, description="n_shapes"),
+            widgets.FloatSlider(value=0.72, min=0.1, max=1.0, step=0.05,
+                                description="alpha"),
+            widgets.IntSlider(value=3, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 52. Pixel Sorting Art ─────────────────────────────────────────────────────
+
+class PixelSortingRenderer(BasePattern):
     name = "Pixel Sorting Art"
     group = "Abstract & Artistic"
 
-class AsciiArtRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               threshold=0.30, sort_mode=0, vertical=0, seed=9, **kwargs):
+        from scipy.ndimage import zoom as nd_zoom
+        from engines.color_utils import ColorUtils
+
+        rng = np.random.default_rng(int(seed))
+        res = self._resolve_resolution(resolution)
+        cmap = ColorUtils.make_colormap(palette)
+        thresh = float(threshold)
+
+        # Multi-octave value noise → luminance field
+        field = np.zeros((res, res), dtype=float)
+        amp = 1.0
+        total = 0.0
+        for k in range(5):
+            n_g = max(4, (2 ** k) * 6 + 2)
+            noise = rng.random((n_g, n_g)).astype(float)
+            zf = res / n_g
+            layer = nd_zoom(noise, zf, order=3, mode="wrap")
+            ly, lx = layer.shape
+            if ly >= res and lx >= res:
+                layer = layer[:res, :res]
+            else:
+                tmp = np.zeros((res, res))
+                tmp[:min(ly, res), :min(lx, res)] = layer[:min(ly, res), :min(lx, res)]
+                layer = tmp
+            field += amp * layer
+            total += amp
+            amp *= 0.5
+        field /= total
+        field = (field - field.min()) / (field.max() - field.min() + 1e-9)
+
+        # Vectorised colormap application → RGB image
+        rgb = cmap(field)[:, :, :3].copy()   # (res, res, 3)
+
+        do_vert = int(vertical) % 2 == 1
+        if do_vert:
+            rgb = np.rot90(rgb)
+
+        # Pixel sorting: for each row find contiguous spans above threshold,
+        # then sort those spans by the chosen key (luminance / red / saturation).
+        mode = int(sort_mode) % 3
+        sorted_rgb = rgb.copy()
+
+        for row_i in range(res):
+            row = rgb[row_i]            # (res, 3)
+            if mode == 0:
+                keys = 0.299 * row[:, 0] + 0.587 * row[:, 1] + 0.114 * row[:, 2]
+            elif mode == 1:
+                keys = row[:, 0]        # red channel
+            else:
+                keys = np.max(row, axis=1) - np.min(row, axis=1)  # sat proxy
+
+            above = keys > thresh
+            if not np.any(above):
+                continue
+
+            # Walk the boolean mask to find contiguous segments
+            in_seg = False
+            seg_start = 0
+            for col_i in range(res):
+                if above[col_i] and not in_seg:
+                    seg_start = col_i
+                    in_seg = True
+                elif not above[col_i] and in_seg:
+                    order = np.argsort(keys[seg_start:col_i])
+                    sorted_rgb[row_i, seg_start:col_i] = row[seg_start:col_i][order]
+                    in_seg = False
+            if in_seg:
+                order = np.argsort(keys[seg_start:])
+                sorted_rgb[row_i, seg_start:] = row[seg_start:][order]
+
+        if do_vert:
+            sorted_rgb = np.rot90(sorted_rgb, k=-1)
+
+        sorted_rgb = np.clip(sorted_rgb, 0, 1)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="black")
+        ax.set_facecolor("black")
+        ax.axis("off")
+        ax.imshow(sorted_rgb, origin="upper", interpolation="nearest")
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.FloatSlider(value=0.30, min=0.0, max=0.90, step=0.05,
+                                description="threshold"),
+            widgets.IntSlider(value=0, min=0, max=2, description="sort_mode"),
+            widgets.IntSlider(value=0, min=0, max=1, description="vertical"),
+            widgets.IntSlider(value=9, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 53. ASCII Art Renderer ────────────────────────────────────────────────────
+
+class AsciiArtRenderer(BasePattern):
     name = "ASCII Art Renderer"
     group = "Abstract & Artistic"
 
-class KandinskyRenderer(_StubMixin, BasePattern):
+    # Luminance ramp: dense (dark) → sparse (bright)
+    _RAMP = "@%#*+=- :. "
+
+    def render(self, resolution="Low", palette="Monochrome", speed=1.0,
+               cols=60, seed=22, invert=0, **kwargs):
+        from scipy.ndimage import zoom as nd_zoom
+        from engines.color_utils import ColorUtils
+
+        rng = np.random.default_rng(int(seed))
+        ncols = int(cols)
+        nrows = max(1, ncols // 2)   # chars are ~2× taller than wide
+
+        # Build a two-octave noise field at char resolution
+        def make_layer(grid_div, nrows, ncols):
+            g = rng.random((max(4, nrows // grid_div),
+                            max(4, ncols // grid_div))).astype(float)
+            z = nd_zoom(g,
+                        (nrows / g.shape[0], ncols / g.shape[1]),
+                        order=3, mode="wrap")
+            return z[:nrows, :ncols]
+
+        field = make_layer(4, nrows, ncols) * 0.65 + make_layer(2, nrows, ncols) * 0.35
+        field = (field - field.min()) / (field.max() - field.min() + 1e-9)
+        if int(invert) % 2 == 1:
+            field = 1.0 - field
+
+        cmap = ColorUtils.make_colormap(palette)
+        # Vectorised colormap lookup
+        rgba = cmap(field)    # (nrows, ncols, 4)
+        ramp = self._RAMP
+        rlen = len(ramp)
+
+        fw = max(6.0, ncols * 0.13)
+        fh = max(4.0, nrows * 0.24)
+        fig, ax = plt.subplots(figsize=(fw, fh), facecolor="#080808")
+        ax.set_facecolor("#080808")
+        ax.axis("off")
+        ax.set_xlim(0, ncols)
+        ax.set_ylim(0, nrows)
+
+        for ri in range(nrows):
+            for ci in range(ncols):
+                v = field[ri, ci]
+                char = ramp[min(int(v * rlen), rlen - 1)]
+                ax.text(ci + 0.5, nrows - ri - 0.5, char,
+                        ha="center", va="center",
+                        fontsize=6.5, color=rgba[ri, ci, :3],
+                        fontfamily="monospace")
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=60, min=20, max=90, description="cols"),
+            widgets.IntSlider(value=22, min=0, max=99, description="seed"),
+            widgets.IntSlider(value=0,  min=0, max=1,  description="invert"),
+        ]
+
+
+
+# ── 54. Kandinsky Color Study ─────────────────────────────────────────────────
+
+class KandinskyRenderer(BasePattern):
     name = "Kandinsky Color Study"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               n_elements=65, style=0, seed=0, **kwargs):
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        cmap = ColorUtils.make_colormap(palette)
+        n = int(n_elements)
+        sv = int(style) % 3
+
+        # Three compositional styles inspired by Kandinsky periods
+        if sv == 0:
+            bg = "#0a0a12"    # Composition VIII: dark ground, hard geometry
+            palette_hex = ["#e63946", "#457b9d", "#f4d03f",
+                           "#2ecc71", "#e67e22", "#9b59b6", "#ecf0f1"]
+        elif sv == 1:
+            bg = "#f5e6c8"    # Yellow-Red-Blue: warm ground, primary palette
+            palette_hex = ["#c0392b", "#2980b9", "#f1c40f",
+                           "#27ae60", "#8e44ad", "#e74c3c", "#3498db"]
+        else:
+            bg = "#0d0d1a"    # Improvisation: dark, cmap-driven colours
+            palette_hex = [mcolors.to_hex(cmap(i / 6.0)) for i in range(7)]
+
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor=bg)
+        ax.set_facecolor(bg)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+
+        def pick(alpha=1.0):
+            return mcolors.to_rgba(rng.choice(palette_hex), alpha=alpha)
+
+        for _ in range(n):
+            etype = int(rng.integers(0, 7))
+            cx = float(rng.uniform(-0.88, 0.88))
+            cy = float(rng.uniform(-0.88, 0.88))
+
+            if etype == 0:
+                # Solid filled circle
+                r = float(rng.uniform(0.04, 0.26))
+                ax.add_patch(patches.Circle((cx, cy), r,
+                                             facecolor=pick(float(rng.uniform(0.6, 1.0))),
+                                             linewidth=0))
+
+            elif etype == 1:
+                # Concentric circle halo
+                r = float(rng.uniform(0.06, 0.20))
+                ax.add_patch(patches.Circle((cx, cy), r,
+                                             facecolor="none",
+                                             edgecolor=pick(),
+                                             linewidth=float(rng.uniform(1.0, 5.0))))
+                ax.add_patch(patches.Circle((cx, cy), r * 0.55,
+                                             facecolor=pick(0.55), linewidth=0))
+
+            elif etype == 2:
+                # Equilateral triangle (random rotation)
+                size = float(rng.uniform(0.05, 0.24))
+                rot = float(rng.uniform(0, 2 * np.pi))
+                angs = rot + np.linspace(0, 2 * np.pi, 4)[:-1]
+                verts = np.column_stack([cx + size * np.cos(angs),
+                                         cy + size * np.sin(angs)])
+                ax.add_patch(patches.Polygon(verts,
+                                              facecolor=pick(float(rng.uniform(0.65, 1.0))),
+                                              linewidth=0))
+
+            elif etype == 3:
+                # Bold line stroke
+                x2 = float(rng.uniform(-0.88, 0.88))
+                y2 = float(rng.uniform(-0.88, 0.88))
+                ax.plot([cx, x2], [cy, y2],
+                        color=pick(),
+                        linewidth=float(rng.uniform(1.0, 9.0)),
+                        solid_capstyle="round", alpha=0.88)
+
+            elif etype == 4:
+                # Rotated rectangle
+                w = float(rng.uniform(0.05, 0.22))
+                h = float(rng.uniform(0.04, 0.18))
+                angle = float(rng.uniform(0, np.pi))
+                ca, sa = np.cos(angle), np.sin(angle)
+                corners = np.array([[-w/2, -h/2], [w/2, -h/2],
+                                     [w/2,  h/2], [-w/2,  h/2]])
+                rot = corners @ np.array([[ca, sa], [-sa, ca]]) + [cx, cy]
+                ax.add_patch(patches.Polygon(rot,
+                                              facecolor=pick(float(rng.uniform(0.7, 1.0))),
+                                              linewidth=0))
+
+            elif etype == 5:
+                # Arc / partial ring
+                r = float(rng.uniform(0.06, 0.22))
+                theta1 = float(rng.uniform(0, 360))
+                theta2 = theta1 + float(rng.uniform(60, 280))
+                ax.add_patch(patches.Arc((cx, cy), 2*r, 2*r,
+                                          theta1=theta1, theta2=theta2,
+                                          color=pick(),
+                                          linewidth=float(rng.uniform(1.0, 6.0))))
+
+            else:
+                # Fan of radiating spokes
+                n_sp = int(rng.integers(5, 14))
+                length = float(rng.uniform(0.06, 0.22))
+                base_a = float(rng.uniform(0, 2 * np.pi))
+                for k in range(n_sp):
+                    a = base_a + k * np.pi / n_sp
+                    ax.plot([cx, cx + length * np.cos(a)],
+                            [cy, cy + length * np.sin(a)],
+                            color=pick(0.85),
+                            linewidth=float(rng.uniform(0.6, 3.0)))
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=65, min=10, max=120, description="n_elements"),
+            widgets.IntSlider(value=0,  min=0,  max=2,  description="style"),
+            widgets.IntSlider(value=0,  min=0,  max=99, description="seed"),
+        ]
+
+
+
+# ── Stubs: 55–60 ──────────────────────────────────────────────────────────────
 
 class ZentangleRenderer(_StubMixin, BasePattern):
     name = "Zentangle Automaton"
@@ -626,5 +1266,3 @@ class CubistRenderer(_StubMixin, BasePattern):
 class AbstractDripRenderer(_StubMixin, BasePattern):
     name = "Abstract Expressionism Drip"
     group = "Abstract & Artistic"
-
-# ── Stub mixin for patterns 48–60 ─────────────────────────────────────────────
