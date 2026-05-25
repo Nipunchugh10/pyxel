@@ -1,6 +1,6 @@
 """
 Abstract & Artistic Patterns (41–60)
-Patterns 41–54 are fully implemented; 55–60 remain as stubs.
+All 60 patterns fully implemented.
 """
 
 import matplotlib.pyplot as plt
@@ -1241,28 +1241,532 @@ class KandinskyRenderer(BasePattern):
 
 
 
-# ── Stubs: 55–60 ──────────────────────────────────────────────────────────────
+# ── 55. Zentangle Automaton ───────────────────────────────────────────────────
 
-class ZentangleRenderer(_StubMixin, BasePattern):
+class ZentangleRenderer(BasePattern):
     name = "Zentangle Automaton"
     group = "Abstract & Artistic"
 
-class NeonSignRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Monochrome", speed=1.0,
+               grid_size=7, n_patterns=6, seed=33, **kwargs):
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        g = int(grid_size)
+        cmap = ColorUtils.make_colormap(palette)
+        n_pat = max(2, min(int(n_patterns), 6))
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#f0ede0")
+        ax.set_facecolor("#f0ede0")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(0, g)
+        ax.set_ylim(0, g)
+
+        for row in range(g):
+            for col in range(g):
+                x0, y0 = float(col), float(row)
+                x1, y1 = x0 + 1.0, y0 + 1.0
+                t = float(rng.uniform(0.1, 0.9))
+                color = mcolors.to_hex(cmap(t))
+                pat = int(rng.integers(0, n_pat))
+
+                # Cell background
+                ax.add_patch(patches.Rectangle(
+                    (x0, y0), 1.0, 1.0,
+                    facecolor=color, alpha=0.10,
+                    linewidth=1.8, edgecolor="#333333"))
+
+                if pat == 0:
+                    # Horizontal lines
+                    for y in np.linspace(y0 + 0.12, y1 - 0.12, 7):
+                        ax.add_line(plt.Line2D(
+                            [x0 + 0.06, x1 - 0.06], [y, y],
+                            color=color, linewidth=1.1, alpha=0.85))
+
+                elif pat == 1:
+                    # Concentric circles
+                    cx, cy = x0 + 0.5, y0 + 0.5
+                    for r in np.linspace(0.09, 0.44, 5):
+                        ax.add_patch(patches.Circle(
+                            (cx, cy), r,
+                            facecolor="none", edgecolor=color,
+                            linewidth=1.2, alpha=0.85))
+
+                elif pat == 2:
+                    # Dot grid
+                    for xd in np.linspace(x0 + 0.18, x1 - 0.18, 4):
+                        for yd in np.linspace(y0 + 0.18, y1 - 0.18, 4):
+                            ax.plot(xd, yd, "o", color=color,
+                                    markersize=3.2, alpha=0.85)
+
+                elif pat == 3:
+                    # Cross-hatch
+                    for y in np.linspace(y0 + 0.12, y1 - 0.12, 6):
+                        ax.add_line(plt.Line2D(
+                            [x0 + 0.06, x1 - 0.06], [y, y],
+                            color=color, linewidth=0.85, alpha=0.75))
+                    for x in np.linspace(x0 + 0.12, x1 - 0.12, 6):
+                        ax.add_line(plt.Line2D(
+                            [x, x], [y0 + 0.06, y1 - 0.06],
+                            color=color, linewidth=0.85, alpha=0.75))
+
+                elif pat == 4:
+                    # Diagonal lines
+                    for k in np.linspace(-0.75, 0.75, 8):
+                        ax.add_line(plt.Line2D(
+                            [x0, x1], [y0 + k, y1 + k],
+                            color=color, linewidth=1.0, alpha=0.80))
+
+                else:
+                    # Archimedean spiral
+                    cx, cy = x0 + 0.5, y0 + 0.5
+                    theta_s = np.linspace(0.0, 4.0 * np.pi, 250)
+                    r_s = 0.022 + (0.42 / (4.0 * np.pi)) * theta_s
+                    ax.plot(cx + r_s * np.cos(theta_s),
+                            cy + r_s * np.sin(theta_s),
+                            color=color, linewidth=1.1, alpha=0.85)
+
+        # Outer border
+        ax.add_patch(patches.Rectangle(
+            (0, 0), g, g,
+            facecolor="none", edgecolor="#222222", linewidth=2.5))
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=7,  min=3, max=14, description="grid_size"),
+            widgets.IntSlider(value=6,  min=2, max=6,  description="n_patterns"),
+            widgets.IntSlider(value=33, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 56. Neon Sign Generator ───────────────────────────────────────────────────
+
+class NeonSignRenderer(BasePattern):
     name = "Neon Sign Generator"
     group = "Abstract & Artistic"
 
-class MosaicTileRenderer(_StubMixin, BasePattern):
+    _NEON_COLORS = ["#ff073a", "#fe75fe", "#04d9ff", "#39ff14",
+                    "#ffcc00", "#ff6b35", "#bc13fe"]
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_signs=6, glow_layers=6, seed=42, **kwargs):
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        n_gl = int(glow_layers)
+
+        fig, ax = plt.subplots(figsize=(8, 7), facecolor="#040404")
+        ax.set_facecolor("#040404")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(-1.0, 1.0)
+        ax.set_ylim(-0.85, 0.85)
+
+        def neon_draw(xs, ys, color_hex, base_lw=3.0):
+            rgb = np.array(mcolors.to_rgb(color_hex))
+            for k in range(n_gl, 0, -1):
+                fac = k / n_gl
+                lw = base_lw * (1.0 + 3.5 * fac)
+                alpha = 0.055 + 0.18 * (1.0 - fac)
+                ax.plot(xs, ys, color=rgb, linewidth=lw, alpha=alpha,
+                        solid_capstyle="round", solid_joinstyle="round")
+            # Bright white core
+            ax.plot(xs, ys, color="white", linewidth=base_lw * 0.38,
+                    alpha=0.92, solid_capstyle="round")
+
+        sign_types = ["circle", "rect", "zigzag", "wave", "star", "arc"]
+
+        for _ in range(int(n_signs)):
+            cx = float(rng.uniform(-0.72, 0.72))
+            cy = float(rng.uniform(-0.60, 0.60))
+            size = float(rng.uniform(0.12, 0.34))
+            color = self._NEON_COLORS[int(rng.integers(0, len(self._NEON_COLORS)))]
+            stype = sign_types[int(rng.integers(0, len(sign_types)))]
+            base_lw = float(rng.uniform(2.0, 4.5))
+
+            if stype == "circle":
+                t = np.linspace(0, 2.0 * np.pi, 240)
+                neon_draw(cx + size * np.cos(t),
+                          cy + size * np.sin(t), color, base_lw)
+
+            elif stype == "rect":
+                hs = size * float(rng.uniform(0.7, 1.5))
+                vs = size * float(rng.uniform(0.5, 1.1))
+                neon_draw([cx - hs, cx + hs, cx + hs, cx - hs, cx - hs],
+                          [cy - vs, cy - vs, cy + vs, cy + vs, cy - vs],
+                          color, base_lw)
+
+            elif stype == "zigzag":
+                n_z = int(rng.integers(5, 10))
+                zxs = np.linspace(cx - size, cx + size, n_z)
+                zys = cy + size * 0.55 * np.tile([0.5, -0.5],
+                                                  (n_z + 1) // 2)[:n_z]
+                neon_draw(zxs, zys, color, base_lw)
+
+            elif stype == "wave":
+                wxs = np.linspace(cx - size, cx + size, 150)
+                freq = float(rng.uniform(2.0, 5.5))
+                wys = cy + size * 0.5 * np.sin(freq * np.pi * (wxs - cx) / size)
+                neon_draw(wxs, wys, color, base_lw)
+
+            elif stype == "star":
+                n_pts = int(rng.choice([5, 6, 8]))
+                outer, inner = size, size * 0.42
+                angs = np.linspace(-np.pi / 2,
+                                   -np.pi / 2 + 2.0 * np.pi,
+                                   2 * n_pts + 1)
+                rs = np.tile([outer, inner], n_pts + 1)[:2 * n_pts + 1]
+                neon_draw(cx + rs * np.cos(angs),
+                          cy + rs * np.sin(angs), color, base_lw)
+
+            else:  # arc
+                th1 = float(rng.uniform(0, np.pi))
+                th2 = th1 + float(rng.uniform(np.pi * 0.4, np.pi * 1.6))
+                t = np.linspace(th1, th2, 180)
+                neon_draw(cx + size * np.cos(t),
+                          cy + size * np.sin(t), color, base_lw)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=6,  min=2,  max=14, description="n_signs"),
+            widgets.IntSlider(value=6,  min=2,  max=10, description="glow_layers"),
+            widgets.IntSlider(value=42, min=0,  max=99, description="seed"),
+        ]
+
+
+
+# ── 57. Mosaic Tile Art ───────────────────────────────────────────────────────
+
+class MosaicTileRenderer(BasePattern):
     name = "Mosaic Tile Art"
     group = "Abstract & Artistic"
 
-class ImpressionistDotsRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               tile_size=20, grout_width=3, color_mode=0, seed=7, **kwargs):
+        from engines.color_utils import ColorUtils
+        from scipy.ndimage import zoom as nd_zoom
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        res = self._resolve_resolution(resolution)
+        cmap = ColorUtils.make_colormap(palette)
+
+        ts = max(5, int(tile_size))
+        gw = max(0, min(int(grout_width), ts - 2))
+        grout_rgb = np.array(mcolors.to_rgb("#1e1e1e"))
+        mode = int(color_mode) % 3
+
+        n_cols = res // ts
+        n_rows = res // ts
+
+        # Build colour field at tile resolution
+        if mode == 0:
+            # Cubic-upsampled value noise
+            base_n = max(4, n_rows // 4)
+            noise = rng.random((base_n, base_n)).astype(float)
+            zfy = n_rows / base_n
+            zfx = n_cols / base_n
+            field = nd_zoom(noise, (zfy, zfx), order=3, mode="wrap")
+            field = field[:n_rows, :n_cols]
+        elif mode == 1:
+            # Radial gradient
+            yr = np.linspace(-1.0, 1.0, n_rows)
+            xr = np.linspace(-1.0, 1.0, n_cols)
+            xx, yy = np.meshgrid(xr, yr)
+            field = np.sqrt(xx ** 2 + yy ** 2)
+            field = (field - field.min()) / (field.max() - field.min() + 1e-9)
+        else:
+            # Random per-tile
+            field = rng.random((n_rows, n_cols))
+
+        # Per-tile random variation
+        field = np.clip(
+            field + rng.uniform(-0.06, 0.06, (n_rows, n_cols)), 0.0, 1.0
+        )
+
+        # Raster image (float RGB)
+        img = np.ones((res, res, 3), dtype=float) * grout_rgb
+
+        for ri in range(n_rows):
+            for ci in range(n_cols):
+                px0 = ci * ts + gw
+                py0 = ri * ts + gw
+                pw = ts - gw
+                ph = ts - gw
+                if pw <= 0 or ph <= 0:
+                    continue
+                base_rgb = np.array(mcolors.to_rgb(cmap(field[ri, ci])))
+                bright = float(rng.uniform(0.90, 1.06))
+                tile_rgb = np.clip(base_rgb * bright, 0.0, 1.0)
+                img[py0:py0 + ph, px0:px0 + pw] = tile_rgb
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#1e1e1e")
+        ax.set_facecolor("#1e1e1e")
+        ax.axis("off")
+        ax.imshow(img, origin="upper", interpolation="nearest")
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=20, min=5,  max=60, description="tile_size"),
+            widgets.IntSlider(value=3,  min=0,  max=10, description="grout_width"),
+            widgets.IntSlider(value=0,  min=0,  max=2,  description="color_mode"),
+            widgets.IntSlider(value=7,  min=0,  max=99, description="seed"),
+        ]
+
+
+
+# ── 58. Impressionist Dots ────────────────────────────────────────────────────
+
+class ImpressionistDotsRenderer(BasePattern):
     name = "Impressionist Dots"
     group = "Abstract & Artistic"
 
-class CubistRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
+               n_dots=4000, dot_size=8.0, jitter=0.008, seed=17, **kwargs):
+        from engines.color_utils import ColorUtils
+        from scipy.ndimage import zoom as nd_zoom
+
+        rng = np.random.default_rng(int(seed))
+        cmap = ColorUtils.make_colormap(palette)
+        nd = int(n_dots)
+
+        # Multi-octave fBm colour field at 200×200
+        field = np.zeros((200, 200), dtype=float)
+        amp, total = 1.0, 0.0
+        for k in range(4):
+            gn = max(4, 6 * (2 ** k))
+            noise = rng.random((gn, gn)).astype(float)
+            layer = nd_zoom(noise, 200.0 / gn, order=3, mode="wrap")[:200, :200]
+            field += amp * layer
+            total += amp
+            amp *= 0.5
+        field /= total
+        field = (field - field.min()) / (field.max() - field.min() + 1e-9)
+
+        # Random dot positions in [0, 1]
+        xs = rng.uniform(0.0, 1.0, nd)
+        ys = rng.uniform(0.0, 1.0, nd)
+
+        # Gaussian position jitter
+        jit = float(jitter)
+        xs = np.clip(xs + rng.normal(0.0, jit, nd), 0.0, 1.0)
+        ys = np.clip(ys + rng.normal(0.0, jit, nd), 0.0, 1.0)
+
+        # Sample colour from field
+        xi = np.clip((xs * 199).astype(int), 0, 199)
+        yi = np.clip((ys * 199).astype(int), 0, 199)
+        vals = np.clip(
+            field[yi, xi] + rng.uniform(-0.08, 0.08, nd), 0.0, 1.0
+        )
+        colors = cmap(vals)   # (nd, 4) RGBA
+
+        # Varying dot sizes
+        sizes = float(dot_size) * rng.uniform(0.6, 1.4, nd)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#f5f0e8")
+        ax.set_facecolor("#f5f0e8")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+
+        ax.scatter(xs, ys, s=sizes, c=colors, alpha=0.82,
+                   linewidths=0, zorder=1)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=4000, min=500, max=10000, step=500,
+                              description="n_dots"),
+            widgets.FloatSlider(value=8.0,  min=2.0, max=30.0, step=1.0,
+                                description="dot_size"),
+            widgets.FloatSlider(value=0.008, min=0.0, max=0.05, step=0.002,
+                                description="jitter"),
+            widgets.IntSlider(value=17, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 59. Cubist Portrait Filter ────────────────────────────────────────────────
+
+class CubistRenderer(BasePattern):
     name = "Cubist Portrait Filter"
     group = "Abstract & Artistic"
 
-class AbstractDripRenderer(_StubMixin, BasePattern):
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               n_facets=120, line_width=0.8, seed=5, **kwargs):
+        from scipy.spatial import Delaunay
+        from scipy.ndimage import zoom as nd_zoom
+        from engines.color_utils import ColorUtils
+
+        rng = np.random.default_rng(int(seed))
+        cmap = ColorUtils.make_colormap(palette)
+        nf = int(n_facets)
+        lw = float(line_width)
+
+        # Interior scatter points + border guards
+        inner = rng.uniform(0.02, 0.98, (nf, 2))
+        border_xs = np.linspace(0.0, 1.0, 9)
+        border = np.array(
+            [[x, y] for x in border_xs for y in (0.0, 1.0)]
+            + [[x, y] for y in border_xs for x in (0.0, 1.0)]
+        )
+        pts = np.vstack([inner, border])
+
+        tri = Delaunay(pts)
+
+        # Colour field: smooth fBm noise at 200×200
+        noise = rng.random((10, 10)).astype(float)
+        color_field = nd_zoom(noise, 20.0, order=3, mode="reflect")[:200, :200]
+        color_field = (color_field - color_field.min()) / (color_field.max() - color_field.min() + 1e-9)
+
+        def centroid_color(simplex_pts):
+            c = simplex_pts.mean(axis=0)
+            xi = int(np.clip(c[0] * 199, 0, 199))
+            yi = int(np.clip(c[1] * 199, 0, 199))
+            return cmap(color_field[yi, xi])
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#0a0a0a")
+        ax.set_facecolor("#0a0a0a")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+
+        for simplex in tri.simplices:
+            verts = pts[simplex]
+            color = centroid_color(verts)
+            ax.add_patch(patches.Polygon(
+                verts, closed=True,
+                facecolor=color,
+                edgecolor="#000000",
+                linewidth=lw))
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=120, min=20, max=400, step=20,
+                              description="n_facets"),
+            widgets.FloatSlider(value=0.8, min=0.0, max=3.0, step=0.2,
+                                description="line_width"),
+            widgets.IntSlider(value=5, min=0, max=99, description="seed"),
+        ]
+
+
+
+# ── 60. Abstract Expressionism Drip ──────────────────────────────────────────
+
+class AbstractDripRenderer(BasePattern):
     name = "Abstract Expressionism Drip"
     group = "Abstract & Artistic"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               n_drips=30, drip_width=3.0, gravity=0.02, seed=0, **kwargs):
+        from engines.color_utils import ColorUtils
+        import matplotlib.colors as mcolors
+
+        rng = np.random.default_rng(int(seed))
+        cmap = ColorUtils.make_colormap(palette)
+        nd = int(n_drips)
+        lw_base = float(drip_width)
+        grav = float(gravity)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#111111")
+        ax.set_facecolor("#111111")
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+
+        for _ in range(nd):
+            t = float(rng.uniform(0.0, 1.0))
+            color = mcolors.to_rgb(cmap(t))
+
+            x = float(rng.uniform(0.03, 0.97))
+            y = float(rng.uniform(0.50, 0.97))
+            vx = float(rng.uniform(-0.018, 0.018))
+            vy = float(rng.uniform(-0.025, 0.008))
+
+            n_steps = int(rng.integers(45, 200))
+            xs = [x]
+            ys = [y]
+
+            for _ in range(n_steps):
+                vx += float(rng.uniform(-0.008, 0.008))
+                vy -= grav
+                vy += float(rng.uniform(-0.004, 0.004))
+                vx *= 0.97
+                vy *= 0.97
+                x = x + vx
+                y = y + vy
+                if x < 0.01 or x > 0.99 or y < 0.01:
+                    break
+                y = min(y, 1.0)
+                xs.append(x)
+                ys.append(y)
+
+            if len(xs) < 2:
+                continue
+
+            alpha = float(rng.uniform(0.60, 0.95))
+            lw = lw_base * float(rng.uniform(0.5, 2.0))
+            ax.plot(xs, ys, color=color, linewidth=lw, alpha=alpha,
+                    solid_capstyle="round", solid_joinstyle="round")
+
+            # Splatter at drip terminus
+            n_splat = int(rng.integers(3, 13))
+            for _ in range(n_splat):
+                sx = xs[-1] + float(rng.uniform(-0.026, 0.026))
+                sy = ys[-1] + float(rng.uniform(-0.020, 0.006))
+                sr = float(rng.uniform(0.003, 0.013))
+                ax.add_patch(patches.Circle(
+                    (sx, sy), sr,
+                    facecolor=color, alpha=alpha * 0.70,
+                    linewidth=0))
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=30, min=5,  max=80, description="n_drips"),
+            widgets.FloatSlider(value=3.0, min=0.5, max=8.0, step=0.5,
+                                description="drip_width"),
+            widgets.FloatSlider(value=0.02, min=0.005, max=0.10, step=0.005,
+                                description="gravity"),
+            widgets.IntSlider(value=0,  min=0, max=99, description="seed"),
+        ]
