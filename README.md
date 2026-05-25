@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **54 / 100** — in progress |
+| Pattern implementations | **60 / 100** — in progress |
 
 **Progress by group:**
 
@@ -31,7 +31,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 |-------|------|-------|
 | Geometric & Mathematical (1–20) | 20 | 20 ✅ |
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
-| Abstract & Artistic (41–60) | 14 | 20 |
+| Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 0 | 10 |
 | 3D Objects & Sculptures (71–90) | 0 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
@@ -152,7 +152,7 @@ visual_engine/
 | 39 | River Delta Branching | Recursive binary bifurcation, fan-spread, muddy→teal colour |
 | 40 | Moth Wing Pattern | Elliptical wing masks + concentric bands + bilateral eyespots |
 
-### Abstract & Artistic (41–60) — 14/20 complete
+### Abstract & Artistic (41–60) — 20/20 complete
 
 | # | Pattern | Key Technique |
 |---|---------|---------------|
@@ -170,6 +170,12 @@ visual_engine/
 | 52 | Pixel Sorting Art | Contiguous-span detection + `np.argsort` pixel reordering above threshold |
 | 53 | ASCII Art Renderer | 10-level density ramp, two-octave value noise, monospace text grid |
 | 54 | Kandinsky Color Study | 7 element types, 3 compositional styles (Composition VIII / YRB / Improvisation) |
+| 55 | Zentangle Automaton | g×g grid, 6 tangle rules (lines / circles / dots / cross-hatch / diagonals / Archimedean spiral) |
+| 56 | Neon Sign Generator | Multi-pass glow w_k=w_base·(1+3.5k/n_g) + alpha falloff + white core, 6 sign shapes |
+| 57 | Mosaic Tile Art | Raster tessera renderer — ts-pixel tiles with grout, 3 colour modes, brightness jitter |
+| 58 | Impressionist Dots | 4-octave fBm colour field, vectorised `cmap(vals)` scatter, Gaussian position jitter |
+| 59 | Cubist Portrait Filter | Delaunay triangulation on n points + 36 border guards, centroid-sampled noise field |
+| 60 | Abstract Expressionism Drip | Velocity-damped random walk v×=0.97 − gravity, terminal splatter Circle patches |
 
 ---
 
