@@ -177,9 +177,67 @@ class CellularAutomatonRenderer(BasePattern):
             widgets.IntSlider(value=0, min=0, max=99, description="seed"),
         ]
 
-class DungeonRenderer(_StubMixin, BasePattern):
+# ── 63. Dungeon Room Placer ───────────────────────────────────────────────────
+
+class DungeonRenderer(BasePattern):
     name = "Dungeon Room Placer"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               grid_size=60, n_rooms=12, seed=7, **kwargs):
+        rng = np.random.default_rng(int(seed))
+        G = int(grid_size); n_rooms = int(n_rooms)
+        dungeon = np.zeros((G, G), dtype=np.uint8)
+        rooms = []
+        min_sz, max_sz = 4, max(5, G // 6)
+
+        for _ in range(n_rooms * 10):
+            if len(rooms) >= n_rooms: break
+            w = rng.integers(min_sz, max_sz + 1)
+            h = rng.integers(min_sz, max_sz + 1)
+            x = rng.integers(1, G - w - 1)
+            y = rng.integers(1, G - h - 1)
+            overlap = any(x < rx+rw+1 and x+w+1 > rx and
+                          y < ry+rh+1 and y+h+1 > ry
+                          for (rx,ry,rw,rh) in rooms)
+            if not overlap:
+                dungeon[y:y+h, x:x+w] = 1
+                rooms.append((x, y, w, h))
+
+        def center(r): return r[0]+r[2]//2, r[1]+r[3]//2
+        def corridor(x1,y1,x2,y2):
+            for cx in range(min(x1,x2), max(x1,x2)+1):
+                dungeon[y1,cx] = 2 if dungeon[y1,cx]==0 else dungeon[y1,cx]
+            for cy in range(min(y1,y2), max(y1,y2)+1):
+                dungeon[cy,x2] = 2 if dungeon[cy,x2]==0 else dungeon[cy,x2]
+
+        order = list(range(len(rooms))); rng.shuffle(order)
+        ro = [rooms[i] for i in order]
+        for i in range(len(ro)-1):
+            corridor(*center(ro[i]), *center(ro[i+1]))
+
+        img = np.zeros((G, G, 3), dtype=float)
+        img[dungeon==0] = [0.07, 0.06, 0.08]
+        img[dungeon==1] = [0.72, 0.63, 0.48]
+        img[dungeon==2] = [0.42, 0.36, 0.28]
+        for (rx,ry,rw,rh) in rooms:
+            img[ry+rh//2, rx+rw//2] = [1.0, 0.85, 0.3]
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#080808")
+        ax.set_facecolor("#080808"); ax.axis("off")
+        ax.imshow(img, origin="upper", interpolation="nearest")
+        ax.set_title(f"Dungeon — {len(rooms)} rooms on {G}x{G} grid",
+                     color="#aaaaaa", fontsize=10, pad=6)
+        self._fig = fig
+        plt.tight_layout(); plt.show(); plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=60, min=30, max=120, description="grid_size"),
+            widgets.IntSlider(value=12, min=3, max=30, description="n_rooms"),
+            widgets.IntSlider(value=7, min=0, max=999, description="seed"),
+        ]
 
 class RetroStarfieldRenderer(_StubMixin, BasePattern):
     name = "Retro Starfield"
