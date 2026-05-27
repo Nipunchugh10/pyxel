@@ -874,9 +874,176 @@ class BulletHellRenderer(BasePattern):
             widgets.IntSlider(value=0, min=0, max=99, description="seed"),
         ]
 
-class CardSuitRenderer(_StubMixin, BasePattern):
+
+# ── 69. Card Suit Patterns ────────────────────────────────────────────────────
+
+class CardSuitRenderer(BasePattern):
     name = "Card Suit Patterns"
     group = "2D Game-Style"
+
+    # ── Suit shape generators ──────────────────────────────────────────────
+    @staticmethod
+    def _heart(cx, cy, s, n=300):
+        """Parametric heart: x=16sin³t, y=13cos−5cos2t−2cos3t−cos4t."""
+        t  = np.linspace(0, 2 * np.pi, n)
+        x  = 16 * np.sin(t) ** 3
+        y  = (13 * np.cos(t)
+              - 5  * np.cos(2 * t)
+              - 2  * np.cos(3 * t)
+              - np.cos(4 * t))
+        x  = x / 16.0
+        y  = (y - y.min()) / (y.max() - y.min() + 1e-9) * 2.0 - 1.0
+        return cx + x * s, cy + y * s
+
+    @staticmethod
+    def _diamond(cx, cy, s):
+        """Rhombus (rotated square)."""
+        xs = [cx,       cx + s, cx,       cx - s, cx]
+        ys = [cy + s,   cy,     cy - s,   cy,     cy + s]
+        return xs, ys
+
+    @staticmethod
+    def _club(cx, cy, s):
+        """Three circles in a triangle + rectangular stem."""
+        circles = []
+        r = s * 0.48
+        offsets = [(0, s * 0.28), (-s * 0.42, -s * 0.20), (s * 0.42, -s * 0.20)]
+        for dx, dy in offsets:
+            circles.append((cx + dx, cy + dy, r))
+        stem = (cx - s * 0.14, cy - s * 0.95, s * 0.28, s * 0.55)
+        return circles, stem
+
+    @staticmethod
+    def _spade(cx, cy, s, n=300):
+        """Inverted heart + triangular handle."""
+        t  = np.linspace(0, 2 * np.pi, n)
+        x  = 16 * np.sin(t) ** 3
+        y  = (13 * np.cos(t)
+              - 5  * np.cos(2 * t)
+              - 2  * np.cos(3 * t)
+              - np.cos(4 * t))
+        x  = x / 16.0
+        y  = (y - y.min()) / (y.max() - y.min() + 1e-9) * 2.0 - 1.0
+        blade_x = cx + x * s
+        blade_y = cy - y * s + s * 0.15   # flip and shift up
+        stem_x  = [cx - s * 0.14, cx + s * 0.14, cx + s * 0.14,
+                   cx - s * 0.14, cx - s * 0.14]
+        stem_y  = [cy - s * 0.40, cy - s * 0.40, cy - s * 0.95,
+                   cy - s * 0.95, cy - s * 0.40]
+        return blade_x, blade_y, stem_x, stem_y
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               layout=0, seed=0, **kwargs):
+        from engines.color_utils import ColorUtils
+        rng    = np.random.default_rng(int(seed))
+        layout = int(layout) % 3
+
+        suit_colors = {
+            "heart":   "#cc1111",
+            "diamond": "#cc1111",
+            "club":    "#111111",
+            "spade":   "#111111",
+        }
+        bg_col = "#f5f0e8"     # parchment
+
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor=bg_col)
+        ax.set_facecolor(bg_col)
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        def draw_suit(ax, name, cx, cy, s, col):
+            if name == "heart":
+                hx, hy = self._heart(cx, cy, s)
+                ax.fill(hx, hy, color=col, zorder=3)
+                ax.plot(hx, hy, color=col, lw=0.5, zorder=4)
+
+            elif name == "diamond":
+                dx, dy = self._diamond(cx, cy, s)
+                ax.fill(dx, dy, color=col, zorder=3)
+                ax.plot(dx, dy, color=col, lw=0.5, zorder=4)
+
+            elif name == "club":
+                circles, (sx2, sy2, sw, sh) = self._club(cx, cy, s)
+                for (ccx, ccy, cr) in circles:
+                    ax.add_patch(patches.Circle(
+                        (ccx, ccy), cr,
+                        facecolor=col, edgecolor=col, lw=0.5, zorder=3))
+                ax.add_patch(patches.FancyBboxPatch(
+                    (sx2, sy2), sw, sh,
+                    boxstyle="round,pad=0.02",
+                    facecolor=col, edgecolor="none", zorder=3))
+
+            elif name == "spade":
+                bx2, by2, stx, sty = self._spade(cx, cy, s)
+                ax.fill(bx2, by2, color=col, zorder=3)
+                ax.fill(stx, sty, color=col, zorder=3)
+
+        if layout == 0:    # 2×2 large symbols
+            ax.set_xlim(-2.2, 2.2)
+            ax.set_ylim(-2.2, 2.2)
+            positions = [(-1.1, 1.1, "heart"),   (1.1, 1.1, "diamond"),
+                         (-1.1, -1.1, "club"),   (1.1, -1.1, "spade")]
+            for (cx2, cy2, sname) in positions:
+                col = suit_colors[sname]
+                draw_suit(ax, sname, cx2, cy2, 0.72, col)
+                ax.text(cx2, cy2 - 1.05, sname.upper(),
+                        ha="center", va="center",
+                        fontsize=8, color=col,
+                        fontfamily="monospace", fontweight="bold", zorder=5)
+
+        elif layout == 1:  # 4×4 tile grid
+            ax.set_xlim(-0.5, 4.5)
+            ax.set_ylim(-0.5, 4.5)
+            suit_order = ["heart", "diamond", "club", "spade"]
+            for row in range(4):
+                for col2 in range(4):
+                    sname = suit_order[(row * 4 + col2) % 4]
+                    cx2, cy2 = col2 + 0.5, row + 0.5
+                    col3 = suit_colors[sname]
+                    draw_suit(ax, sname, cx2, cy2, 0.30, col3)
+
+        elif layout == 2:  # Playing-card face layout
+            ax.set_xlim(0, 7)
+            ax.set_ylim(0, 10)
+            # Card border
+            ax.add_patch(patches.FancyBboxPatch(
+                (0.15, 0.15), 6.70, 9.70,
+                boxstyle="round,pad=0.2",
+                facecolor="white", edgecolor="#cccccc", linewidth=2, zorder=1))
+            # Central large suit
+            draw_suit(ax, "heart", 3.5, 5.0, 1.6, "#cc1111")
+            # Corner pips
+            for (cx2, cy2, sname, sz) in [
+                (0.55, 9.45, "heart",   0.22),
+                (6.45, 0.55, "heart",   0.22),
+                (0.55, 9.05, "heart",   0.18),
+                (6.45, 0.95, "heart",   0.18),
+            ]:
+                draw_suit(ax, sname, cx2, cy2, sz, "#cc1111")
+            # Rank labels
+            for (tx, ty, rot) in [(0.48, 8.65, 0), (6.52, 1.35, 180)]:
+                ax.text(tx, ty, "A", ha="center", va="center",
+                        fontsize=18, color="#cc1111",
+                        fontfamily="serif", fontweight="bold",
+                        rotation=rot, zorder=5)
+
+        layout_names = ["2x2 Grid", "Tile Mosaic", "Card Face"]
+        ax.set_title(f"Card Suit Patterns — {layout_names[layout]}",
+                     color="#555555", fontsize=10, pad=6)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.Dropdown(
+                options=[("2x2 Grid", 0), ("Tile Mosaic", 1), ("Card Face", 2)],
+                value=0, description="layout"),
+            widgets.IntSlider(value=0, min=0, max=99, description="seed"),
+        ]
 
 class PixelFlagRenderer(_StubMixin, BasePattern):
     name = "Pixel Flag Generator"
