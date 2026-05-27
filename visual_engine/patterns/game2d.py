@@ -129,9 +129,53 @@ class MazeRenderer(BasePattern):
             widgets.Checkbox(value=True, description="show_solution"),
         ]
 
-class CellularAutomatonRenderer(_StubMixin, BasePattern):
+# ── 62. Cellular Automaton Life ───────────────────────────────────────────────
+
+class CellularAutomatonRenderer(BasePattern):
     name = "Cellular Automaton Life"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               grid_size=80, generations=50, density=0.30, seed=0, **kwargs):
+        from scipy.ndimage import convolve
+        from engines.color_utils import ColorUtils
+        rng = np.random.default_rng(int(seed))
+        N = int(grid_size); gens = int(generations)
+        grid = (rng.random((N, N)) < float(density)).astype(np.uint8)
+        age  = grid.copy().astype(float)
+        kernel = np.array([[1,1,1],[1,0,1],[1,1,1]], dtype=np.uint8)
+        for _ in range(gens):
+            nb = convolve(grid, kernel, mode="wrap")
+            born  = (grid == 0) & (nb == 3)
+            alive = (grid == 1) & ((nb == 2) | (nb == 3))
+            grid  = (born | alive).astype(np.uint8)
+            age   = np.where(grid == 1, age + 1, 0)
+        age_norm = np.log1p(age) / (np.log1p(gens) + 1e-9)
+        cmap = ColorUtils.make_colormap(palette)
+        rgba = cmap(age_norm)
+        dead = grid == 0
+        rgba[dead, :3] = 0.04; rgba[dead, 3] = 1.0
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#060606")
+        ax.set_facecolor("#060606"); ax.axis("off")
+        ax.imshow(rgba, origin="upper", interpolation="nearest")
+        pop = int(grid.sum())
+        ax.set_title(f"Conway's Game of Life — {N}x{N}, {gens} generations",
+                     color="#aaaaaa", fontsize=10, pad=6)
+        ax.text(0.5, -0.02, f"Population: {pop}/{N*N}  ({100*pop/(N*N):.1f}%)",
+                ha="center", va="top", transform=ax.transAxes,
+                color="#888888", fontsize=9)
+        self._fig = fig
+        plt.tight_layout(); plt.show(); plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=80, min=20, max=200, description="grid_size"),
+            widgets.IntSlider(value=50, min=5, max=200, description="generations"),
+            widgets.FloatSlider(value=0.30, min=0.05, max=0.70, step=0.05,
+                                description="density"),
+            widgets.IntSlider(value=0, min=0, max=99, description="seed"),
+        ]
 
 class DungeonRenderer(_StubMixin, BasePattern):
     name = "Dungeon Room Placer"
