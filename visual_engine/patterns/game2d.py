@@ -372,9 +372,131 @@ class BreakoutBrickRenderer(BasePattern):
             widgets.IntSlider(value=3, min=0, max=99, description="seed"),
         ]
 
-class PacManGhostRenderer(_StubMixin, BasePattern):
+# ── 66. Pac-Man Ghost Pathfinding ─────────────────────────────────────────────
+
+class PacManGhostRenderer(BasePattern):
     name = "Pac-Man Ghost Pathfinding"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               maze_size=21, n_ghosts=4, seed=5, **kwargs):
+        rng = np.random.default_rng(int(seed))
+        N = int(maze_size) | 1
+        maze = np.ones((N, N), dtype=np.uint8)
+
+        def carve(r, c):
+            maze[r, c] = 0
+            ds = [(0,2),(0,-2),(2,0),(-2,0)]
+            rng.shuffle(ds)
+            for dr, dc in ds:
+                nr, nc = r+dr, c+dc
+                if 0 <= nr < N and 0 <= nc < N and maze[nr, nc] == 1:
+                    maze[r+dr//2, c+dc//2] = 0
+                    carve(nr, nc)
+
+        import sys as _sys
+        _sys.setrecursionlimit(max(5000, N*N*2))
+        carve(1, 1)
+
+        open_cells = list(zip(*np.where(maze == 0)))
+        pacman_pos = min(open_cells,
+                         key=lambda p: abs(p[0]-N//2)+abs(p[1]-N//2))
+        cands = [p for p in open_cells
+                 if abs(p[0]-pacman_pos[0])+abs(p[1]-pacman_pos[1]) > N//3]
+        if len(cands) < n_ghosts: cands = open_cells
+        ghost_positions = []; used = {pacman_pos}
+        for _ in range(int(n_ghosts)):
+            for _ in range(200):
+                pos = cands[rng.integers(len(cands))]
+                if pos not in used:
+                    ghost_positions.append(pos); used.add(pos); break
+
+        g_cols  = ["#FF0000","#FFB8FF","#00FFFF","#FFB852"]
+        g_names = ["Blinky","Pinky","Inky","Clyde"]
+
+        def bfs(start, goal):
+            if start == goal: return [start]
+            prev = {start: None}; q = [start]; qi = 0
+            while qi < len(q):
+                r, c = q[qi]; qi += 1
+                if (r,c) == goal: break
+                for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
+                    nr, nc = r+dr, c+dc
+                    if 0<=nr<N and 0<=nc<N and maze[nr,nc]==0 and (nr,nc) not in prev:
+                        prev[(nr,nc)] = (r,c); q.append((nr,nc))
+            path = []; cur = goal
+            while cur is not None: path.append(cur); cur = prev.get(cur)
+            path.reverse()
+            return path if path and path[0] == start else []
+
+        ghost_paths = [bfs(gp, pacman_pos) for gp in ghost_positions]
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#000033")
+        ax.set_facecolor("#000033")
+        ax.set_xlim(-0.5, N-0.5); ax.set_ylim(-0.5, N-0.5)
+        ax.set_aspect("equal"); ax.axis("off")
+
+        img = np.zeros((N, N, 3), dtype=float)
+        img[maze==1] = [0.05, 0.05, 0.55]
+        img[maze==0] = [0.02, 0.02, 0.05]
+        ax.imshow(img, origin="upper", interpolation="nearest", zorder=1,
+                  extent=[-0.5, N-0.5, -0.5, N-0.5])
+
+        for path, gcol in zip(ghost_paths, g_cols):
+            if len(path) < 2: continue
+            ys = [N-1-p[0] for p in path]; xs = [p[1] for p in path]
+            ax.plot(xs, ys, color=gcol, lw=2.5, alpha=0.55, zorder=2,
+                    solid_capstyle="round")
+            ax.scatter(xs[1:-1], ys[1:-1], s=8, color=gcol,
+                       alpha=0.35, zorder=3, linewidths=0)
+
+        def draw_ghost(r, c, color, label):
+            x = c; y = N-1-r
+            ax.add_patch(patches.FancyBboxPatch(
+                (x-0.38, y-0.42), 0.76, 0.80, boxstyle="round,pad=0.05",
+                facecolor=color, edgecolor="none", zorder=5))
+            for bi in range(3):
+                ax.add_patch(patches.Circle(
+                    (x-0.32+bi*0.26, y-0.42), 0.13,
+                    facecolor=color, edgecolor="none", zorder=5))
+            for ex in [x-0.14, x+0.14]:
+                ax.add_patch(patches.Circle((ex, y+0.12), 0.10,
+                             facecolor="white", zorder=6))
+                ax.add_patch(patches.Circle((ex+0.04, y+0.08), 0.05,
+                             facecolor="#000080", zorder=7))
+            ax.text(x, y-0.65, label, ha="center", va="top",
+                    color=color, fontsize=5, fontweight="bold", zorder=8)
+
+        for gi, (gp, gcol) in enumerate(zip(ghost_positions, g_cols[:len(ghost_positions)])):
+            draw_ghost(gp[0], gp[1], gcol,
+                       g_names[gi] if gi < len(g_names) else f"G{gi+1}")
+
+        pr, pc = pacman_pos; px_x, px_y = pc, N-1-pr
+        ax.add_patch(patches.Wedge(
+            (px_x, px_y), 0.42, 30, 330,
+            facecolor="#FFE000", edgecolor="none", zorder=5))
+        ax.add_patch(patches.Circle(
+            (px_x+0.10, px_y+0.18), 0.06, facecolor="black", zorder=6))
+
+        for (pr2,pc2) in open_cells:
+            if (pr2,pc2)==pacman_pos or any((pr2,pc2)==gp for gp in ghost_positions): continue
+            ax.add_patch(patches.Circle(
+                (pc2, N-1-pr2), 0.06, facecolor="#ffee88",
+                alpha=0.3, edgecolor="none", zorder=2))
+
+        ax.set_title(f"Pac-Man Ghost Pathfinding — BFS on {N}x{N} maze",
+                     color="#aaaaaa", fontsize=10, pad=6)
+        self._fig = fig
+        plt.tight_layout(); plt.show(); plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=21, min=11, max=41, step=2,
+                              description="maze_size"),
+            widgets.IntSlider(value=4, min=1, max=4, description="n_ghosts"),
+            widgets.IntSlider(value=5, min=0, max=99, description="seed"),
+        ]
 
 class PlatformerTerrainRenderer(_StubMixin, BasePattern):
     name = "Platformer Terrain Gen"
