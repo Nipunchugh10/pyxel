@@ -731,9 +731,148 @@ class PlatformerTerrainRenderer(BasePattern):
                 value=0, description="style"),
         ]
 
-class BulletHellRenderer(_StubMixin, BasePattern):
+
+# ── 68. Bullet Hell Pattern ───────────────────────────────────────────────────
+
+class BulletHellRenderer(BasePattern):
     name = "Bullet Hell Pattern"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               pattern=0, n_bullets=16, n_rings=5, seed=0, **kwargs):
+        from engines.color_utils import ColorUtils
+        rng     = np.random.default_rng(int(seed))
+        pattern = int(pattern) % 5
+        n_b     = int(n_bullets)
+        n_r     = int(n_rings)
+        cmap    = ColorUtils.make_colormap(palette)
+
+        # ── Compute bullet positions (x, y, age_t ∈ [0,1]) ──────────────
+        bullets = []   # (x, y, t)
+
+        if pattern == 0:          # Circular burst — concentric rings
+            for ring in range(n_r):
+                radius = 0.15 + ring * 0.18
+                offset = ring * (np.pi / n_b)   # stagger each ring
+                for b in range(n_b):
+                    angle  = 2 * np.pi * b / n_b + offset
+                    bullets.append((radius * np.cos(angle),
+                                    radius * np.sin(angle),
+                                    ring / max(n_r - 1, 1)))
+
+        elif pattern == 1:        # Double spiral
+            steps = n_r * 4
+            for step in range(steps):
+                for arm in range(2):
+                    radius = 0.08 + step * 0.08
+                    if radius > 1.05:
+                        continue
+                    for b in range(n_b // 2):
+                        angle = (2 * np.pi * b / max(n_b // 2, 1)
+                                 + step * 0.30
+                                 + arm * np.pi)
+                        bullets.append((radius * np.cos(angle),
+                                        radius * np.sin(angle),
+                                        step / max(steps - 1, 1)))
+
+        elif pattern == 2:        # Aimed fan — spreading upward
+            spread = np.pi * 0.5
+            for ring in range(n_r):
+                radius = 0.15 + ring * 0.18
+                for b in range(n_b):
+                    angle = (np.pi / 2
+                             - spread / 2
+                             + spread * b / max(n_b - 1, 1))
+                    bullets.append((radius * np.cos(angle),
+                                    radius * np.sin(angle),
+                                    ring / max(n_r - 1, 1)))
+
+        elif pattern == 3:        # 8-arm star cross
+            n_arms = 8
+            for ring in range(n_r):
+                radius = 0.15 + ring * 0.18
+                for arm in range(n_arms):
+                    base = 2 * np.pi * arm / n_arms
+                    for sub in range(-1, 2):
+                        angle = base + sub * 0.10
+                        bullets.append((radius * np.cos(angle),
+                                        radius * np.sin(angle),
+                                        ring / max(n_r - 1, 1)))
+
+        elif pattern == 4:        # Randomised scatter
+            for ring in range(n_r):
+                radius  = 0.15 + ring * 0.18
+                angles  = rng.uniform(0, 2 * np.pi, n_b)
+                for angle in angles:
+                    bullets.append((radius * np.cos(angle),
+                                    radius * np.sin(angle),
+                                    ring / max(n_r - 1, 1)))
+
+        # ── Draw ──────────────────────────────────────────────────────────
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#040408")
+        ax.set_facecolor("#040408")
+        ax.set_xlim(-1.25, 1.25)
+        ax.set_ylim(-1.25, 1.25)
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        # Faint trajectory guide rings
+        for ring in range(n_r):
+            r = 0.15 + ring * 0.18
+            circle = plt.Circle((0, 0), r, fill=False,
+                                 color="white", lw=0.25, alpha=0.07, zorder=1)
+            ax.add_patch(circle)
+
+        # Bullets (outer glow + core dot)
+        for bx, by, t in bullets:
+            if np.hypot(bx, by) > 1.15:
+                continue
+            col  = cmap(t)
+            size = max(2, 55 * (1 - t * 0.4))
+            ax.scatter([bx], [by], s=size * 2.5, color=[col],
+                       alpha=0.18, zorder=4, linewidths=0)
+            ax.scatter([bx], [by], s=size, color=[col],
+                       alpha=0.90, zorder=5, linewidths=0)
+
+        # Boss sprite
+        for r2, col2, a2 in [(0.10, "#aa1111", 1.0),
+                              (0.07, "#dd2222", 1.0),
+                              (0.04, "#ff8888", 1.0)]:
+            ax.add_patch(plt.Circle((0, 0), r2,
+                                    facecolor=col2, edgecolor="none",
+                                    alpha=a2, zorder=10))
+
+        # Player triangle at top
+        ax.add_patch(patches.RegularPolygon(
+            (0, 1.10), 3, radius=0.065,
+            facecolor="#4499ff", edgecolor="#88ccff",
+            linewidth=1.0, orientation=np.pi, zorder=10))
+
+        pattern_names = ["Circular Burst", "Double Spiral", "Aimed Fan",
+                         "Cross Star", "Random Scatter"]
+        ax.set_title(
+            f"Bullet Hell — {pattern_names[pattern]} | "
+            f"{n_b} bullets x {n_r} rings",
+            color="#aaaaaa", fontsize=10, pad=6)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.Dropdown(
+                options=[("Circular Burst", 0), ("Double Spiral", 1),
+                         ("Aimed Fan", 2), ("Cross Star", 3),
+                         ("Random Scatter", 4)],
+                value=0, description="pattern"),
+            widgets.IntSlider(value=16, min=4, max=32, step=2,
+                              description="n_bullets"),
+            widgets.IntSlider(value=5, min=2, max=10, description="n_rings"),
+            widgets.IntSlider(value=0, min=0, max=99, description="seed"),
+        ]
 
 class CardSuitRenderer(_StubMixin, BasePattern):
     name = "Card Suit Patterns"
