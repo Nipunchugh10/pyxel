@@ -1045,7 +1045,122 @@ class CardSuitRenderer(BasePattern):
             widgets.IntSlider(value=0, min=0, max=99, description="seed"),
         ]
 
-class PixelFlagRenderer(_StubMixin, BasePattern):
+
+# ── 70. Pixel Flag Generator ──────────────────────────────────────────────────
+
+class PixelFlagRenderer(BasePattern):
     name = "Pixel Flag Generator"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               seed=42, design=0, n_colors=3, **kwargs):
+        from engines.color_utils import ColorUtils
+        rng    = np.random.default_rng(int(seed))
+        design = int(design) % 6
+        nc     = max(2, min(int(n_colors), 5))
+
+        cmap   = ColorUtils.make_colormap(palette)
+        # Pick nc evenly-spaced colours from the palette
+        cols   = [np.array(cmap(i / max(nc - 1, 1)))[:3] for i in range(nc)]
+
+        W, H = 90, 60    # flag pixel dimensions
+        flag = np.zeros((H, W, 3), dtype=float)
+
+        def star5(cx, cy, r_out, r_in, img):
+            """Rasterise a 5-pointed star onto img."""
+            for py in range(H):
+                for px2 in range(W):
+                    dx, dy = px2 - cx, py - cy
+                    angle  = np.arctan2(dy, dx) - np.pi / 2
+                    dist   = np.hypot(dx, dy)
+                    # Determine which "wedge" of the star we're in
+                    sector = (angle % (2 * np.pi / 5)) / (2 * np.pi / 5)
+                    r_boundary = (r_in + (r_out - r_in)
+                                  * np.abs(np.sin(np.pi * sector)))
+                    if dist <= r_boundary + 0.5:
+                        img[py, px2] = cols[-1 % nc]
+
+        if design == 0:      # Horizontal stripes
+            n_s = nc
+            for row in range(H):
+                flag[row, :] = cols[int(row / H * n_s) % nc]
+
+        elif design == 1:    # Vertical stripes
+            n_s = nc
+            for col2 in range(W):
+                flag[:, col2] = cols[int(col2 / W * n_s) % nc]
+
+        elif design == 2:    # Nordic cross
+            flag[:] = cols[0]
+            # Horizontal bar
+            h1 = int(H * 0.42)
+            h2 = int(H * 0.58)
+            flag[h1:h2, :] = cols[1 % nc]
+            # Vertical bar (left-of-centre)
+            v1 = int(W * 0.28)
+            v2 = int(W * 0.38)
+            flag[:, v1:v2] = cols[1 % nc]
+            # Cross intersection accent
+            if nc >= 3:
+                flag[h1:h2, v1:v2] = cols[2 % nc]
+
+        elif design == 3:    # Diagonal bicolour
+            for row in range(H):
+                for col2 in range(W):
+                    flag[row, col2] = (cols[0]
+                                       if col2 / W < row / H
+                                       else cols[1 % nc])
+
+        elif design == 4:    # Triband + central star
+            third = W // 3
+            flag[:, :third]         = cols[0]
+            flag[:, third:2*third]  = cols[1 % nc]
+            flag[:, 2*third:]       = cols[2 % nc]
+            star5(W // 2, H // 2, H * 0.22, H * 0.09, flag)
+
+        elif design == 5:    # Procedural noise mosaic
+            block = max(2, int(rng.integers(3, 9)))
+            for br in range(0, H, block):
+                for bc in range(0, W, block):
+                    c_idx = rng.integers(nc)
+                    flag[br:br+block, bc:bc+block] = cols[c_idx]
+
+        # ── Upscale for display ────────────────────────────────────────────
+        scale  = 5
+        big    = np.repeat(np.repeat(flag, scale, axis=0), scale, axis=1)
+
+        fig, ax = plt.subplots(figsize=(9, 6), facecolor="#1a1a1a")
+        ax.set_facecolor("#1a1a1a")
+        ax.axis("off")
+        ax.imshow(big, origin="upper", interpolation="nearest")
+
+        # Flag border
+        bh, bw2 = big.shape[:2]
+        ax.add_patch(patches.Rectangle(
+            (-0.5, -0.5), bw2, bh,
+            fill=False, edgecolor="#888888", linewidth=2, zorder=5))
+
+        design_names = ["H-Stripes", "V-Stripes", "Nordic Cross",
+                        "Diagonal", "Triband+Star", "Noise Mosaic"]
+        ax.set_title(
+            f"Pixel Flag — {design_names[design]}, "
+            f"{nc} colours, seed={seed}",
+            color="#aaaaaa", fontsize=10, pad=6)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.Dropdown(
+                options=[("H-Stripes", 0), ("V-Stripes", 1),
+                         ("Nordic Cross", 2), ("Diagonal", 3),
+                         ("Triband+Star", 4), ("Noise Mosaic", 5)],
+                value=0, description="design"),
+            widgets.IntSlider(value=3, min=2, max=5, description="n_colors"),
+            widgets.IntSlider(value=42, min=0, max=999, description="seed"),
+        ]
 
