@@ -291,9 +291,86 @@ class RetroStarfieldRenderer(BasePattern):
             widgets.IntSlider(value=0, min=0, max=99, description="seed"),
         ]
 
-class BreakoutBrickRenderer(_StubMixin, BasePattern):
+# ── 65. Breakout Brick Map ────────────────────────────────────────────────────
+
+class BreakoutBrickRenderer(BasePattern):
     name = "Breakout Brick Map"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               brick_rows=10, brick_cols=16, style=0, seed=3, **kwargs):
+        from engines.color_utils import ColorUtils
+        rng = np.random.default_rng(int(seed))
+        R, C = int(brick_rows), int(brick_cols)
+        style = int(style) % 4
+        cmap  = ColorUtils.make_colormap(palette)
+        vals  = np.zeros((R, C), dtype=float)
+
+        if style == 0:
+            for r in range(R): vals[r, :] = r / max(R-1, 1)
+        elif style == 1:
+            for r in range(R):
+                for c in range(C): vals[r, c] = (r + c) % 2
+        elif style == 2:
+            cx, cy = C/2.0, R/2.0
+            for r in range(R):
+                for c in range(C):
+                    vals[r, c] = np.hypot(c-cx, r-cy) / np.hypot(cx, cy)
+        elif style == 3:
+            vals = rng.random((R, C))
+
+        vals = (vals - vals.min()) / (vals.max() - vals.min() + 1e-9)
+        present = np.ones((R, C), dtype=bool)
+        if style == 3:
+            present = rng.random((R, C)) > 0.15
+
+        pad = 0.04; bw = (1.0 - 2*pad) / C
+        bh  = (0.55 - pad) / R; gap = 0.004; top_y = 0.95
+
+        fig, ax = plt.subplots(figsize=(8, 6), facecolor="#0a0a10")
+        ax.set_facecolor("#0a0a10")
+        ax.set_xlim(0,1); ax.set_ylim(0,1)
+        ax.set_aspect("auto"); ax.axis("off")
+
+        for r in range(R):
+            for c in range(C):
+                if not present[r, c]: continue
+                x = pad + c*bw + gap
+                y = top_y - (r+1)*bh + gap
+                w = bw - 2*gap; h = bh - 2*gap
+                color = cmap(vals[r, c])
+                ax.add_patch(patches.FancyBboxPatch(
+                    (x,y), w, h, boxstyle="round,pad=0.002",
+                    facecolor=color, edgecolor="none", zorder=2))
+                ax.add_patch(patches.FancyBboxPatch(
+                    (x+0.002, y+h*0.72), w-0.004, h*0.22,
+                    boxstyle="round,pad=0.001",
+                    facecolor="white", alpha=0.28, edgecolor="none", zorder=3))
+
+        pw = 0.18; px = 0.5 - pw/2
+        ax.add_patch(patches.FancyBboxPatch(
+            (px, 0.05), pw, 0.025, boxstyle="round,pad=0.003",
+            facecolor="#b0c8ff", edgecolor="#5080cc", linewidth=1.5, zorder=4))
+        ax.add_patch(patches.Circle(
+            (0.5, 0.13), 0.016, facecolor="white", edgecolor="#cccccc",
+            linewidth=1, zorder=5))
+
+        names = ["Row Gradient","Checkerboard","Radial","Noise Art"]
+        ax.set_title(f"Breakout Brick Map — {R}x{C}, Style: {names[style]}",
+                     color="#aaaaaa", fontsize=10, pad=6)
+        self._fig = fig
+        plt.tight_layout(); plt.show(); plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=10, min=3, max=18, description="brick_rows"),
+            widgets.IntSlider(value=16, min=4, max=24, description="brick_cols"),
+            widgets.Dropdown(options=[("Row Gradient",0),("Checkerboard",1),
+                                      ("Radial",2),("Noise Art",3)],
+                             value=0, description="style"),
+            widgets.IntSlider(value=3, min=0, max=99, description="seed"),
+        ]
 
 class PacManGhostRenderer(_StubMixin, BasePattern):
     name = "Pac-Man Ghost Pathfinding"
