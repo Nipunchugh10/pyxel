@@ -239,9 +239,57 @@ class DungeonRenderer(BasePattern):
             widgets.IntSlider(value=7, min=0, max=999, description="seed"),
         ]
 
-class RetroStarfieldRenderer(_StubMixin, BasePattern):
+# ── 64. Retro Starfield ───────────────────────────────────────────────────────
+
+class RetroStarfieldRenderer(BasePattern):
     name = "Retro Starfield"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               n_stars=800, warp=0.4, seed=0, **kwargs):
+        rng = np.random.default_rng(int(seed))
+        n = int(n_stars); warp = float(warp)
+        x3 = rng.uniform(-1.0, 1.0, n)
+        y3 = rng.uniform(-1.0, 1.0, n)
+        z  = rng.power(1.0 + warp * 4, n)
+        px = x3 / (z + 0.01); py = y3 / (z + 0.01)
+        mask = (np.abs(px) < 2.0) & (np.abs(py) < 2.0)
+        px, py, z = px[mask], py[mask], z[mask]
+        brightness = 1.0 - z
+        sizes = (1.0 - z) ** 2 * 60 + 0.5
+        r_ch = 0.6 + 0.4 * brightness
+        g_ch = 0.6 + 0.4 * brightness
+        b_ch = np.ones_like(brightness)
+        colors = np.clip(np.stack([r_ch, g_ch, b_ch, brightness], axis=1), 0, 1)
+        streak_mask = z < 0.25
+        sx, sy, sz = px[streak_mask], py[streak_mask], z[streak_mask]
+        streak_len = (0.25 - sz) * 0.3
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#000005")
+        ax.set_facecolor("#000005")
+        ax.set_xlim(-2, 2); ax.set_ylim(-2, 2)
+        ax.set_aspect("equal"); ax.axis("off")
+        for xi, yi, dl in zip(sx, sy, streak_len):
+            ax.plot([xi, xi*(1+dl)], [yi, yi*(1+dl)],
+                    color="white", lw=0.4, alpha=0.35, zorder=1)
+        ax.scatter(px, py, s=sizes, c=colors, zorder=2, linewidths=0)
+        from matplotlib.patches import Circle
+        for rg, ag in [(0.6,0.06),(0.25,0.10),(0.08,0.18)]:
+            ax.add_patch(Circle((0,0), rg, color="white", alpha=ag, zorder=0))
+        ax.set_title(f"Retro Starfield — {len(px)} stars, warp={warp:.1f}",
+                     color="#6688aa", fontsize=10, pad=6)
+        self._fig = fig
+        plt.tight_layout(); plt.show(); plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=800, min=100, max=3000, step=100,
+                              description="n_stars"),
+            widgets.FloatSlider(value=0.4, min=0.0, max=1.0, step=0.05,
+                                description="warp"),
+            widgets.IntSlider(value=0, min=0, max=99, description="seed"),
+        ]
 
 class BreakoutBrickRenderer(_StubMixin, BasePattern):
     name = "Breakout Brick Map"
