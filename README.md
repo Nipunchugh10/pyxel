@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **60 / 100** — in progress |
+| Pattern implementations | **66 / 100** — in progress |
 
 **Progress by group:**
 
@@ -32,7 +32,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Geometric & Mathematical (1–20) | 20 | 20 ✅ |
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
-| 2D Game-Style (61–70) | 0 | 10 |
+| 2D Game-Style (61–70) | 6 | 10 |
 | 3D Objects & Sculptures (71–90) | 0 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
 
@@ -176,6 +176,17 @@ visual_engine/
 | 58 | Impressionist Dots | 4-octave fBm colour field, vectorised `cmap(vals)` scatter, Gaussian position jitter |
 | 59 | Cubist Portrait Filter | Delaunay triangulation on n points + 36 border guards, centroid-sampled noise field |
 | 60 | Abstract Expressionism Drip | Velocity-damped random walk v×=0.97 − gravity, terminal splatter Circle patches |
+
+### 2D Game-Style (61–70) — 6/10 complete
+
+| # | Pattern | Key Technique |
+|---|---------|---------------|
+| 61 | Maze Generator & Solver | Iterative DFS backtracker + BFS solver; wall arrays + `LineCollection` |
+| 62 | Cellular Automaton Life | Conway's GoL via `scipy.ndimage.convolve`; log-age colourmap |
+| 63 | Dungeon Room Placer | Random room placement with overlap test; L-shaped corridor carving |
+| 64 | Retro Starfield | Perspective projection x/z, y/z; power-law depth distribution; motion streaks |
+| 65 | Breakout Brick Map | 4 colouring styles (row/checker/radial/noise); bevel highlight via `FancyBboxPatch` |
+| 66 | Pac-Man Ghost Pathfinding | BFS predecessor map on DFS-carved perfect maze; ghost/Pac-Man sprite rendering |
 
 ---
 
