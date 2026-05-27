@@ -27,8 +27,12 @@ class _StubMixin:
         ax.text(0.5, 0.42, "Coming Soon", ha="center", va="center",
                 fontsize=11, color="#888", style="italic",
                 transform=ax.transAxes)
-        ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         return []
@@ -57,10 +61,14 @@ class MazeRenderer(BasePattern):
                           if 0 <= r+dr < R and 0 <= c+dc < C and not visited[r+dr, c+dc]]
             if neighbours:
                 nr, nc, dr, dc = neighbours[rng.integers(len(neighbours))]
-                if dr == -1:   wall_h[r][c]     = False
-                elif dr == 1:  wall_h[r + 1][c] = False
-                elif dc == -1: wall_v[r][c]     = False
-                elif dc == 1:  wall_v[r][c + 1] = False
+                if dr == -1:
+                    wall_h[r][c] = False
+                elif dr == 1:
+                    wall_h[r + 1][c] = False
+                elif dc == -1:
+                    wall_v[r][c] = False
+                elif dc == 1:
+                    wall_v[r][c + 1] = False
                 visited[nr, nc] = True
                 stack.append((nr, nc))
             else:
@@ -69,29 +77,39 @@ class MazeRenderer(BasePattern):
         path_cells = set()
         if show_solution:
             prev = {(0, 0): None}
-            queue = [(0, 0)]; qi = 0
+            queue = [(0, 0)]
+            qi = 0
             while qi < len(queue):
-                r, c = queue[qi]; qi += 1
-                if (r, c) == (R - 1, C - 1): break
+                r, c = queue[qi]
+                qi += 1
+                if (r, c) == (R - 1, C - 1):
+                    break
                 for dr, dc in dirs:
                     nr, nc = r + dr, c + dc
                     if 0 <= nr < R and 0 <= nc < C and (nr, nc) not in prev:
                         p = False
-                        if dr==-1 and not wall_h[r][c]:    p=True
-                        elif dr==1 and not wall_h[r+1][c]: p=True
-                        elif dc==-1 and not wall_v[r][c]:  p=True
-                        elif dc==1 and not wall_v[r][c+1]: p=True
+                        if dr == -1 and not wall_h[r][c]:
+                            p = True
+                        elif dr == 1 and not wall_h[r+1][c]:
+                            p = True
+                        elif dc == -1 and not wall_v[r][c]:
+                            p = True
+                        elif dc == 1 and not wall_v[r][c+1]:
+                            p = True
                         if p:
                             prev[(nr, nc)] = (r, c)
                             queue.append((nr, nc))
             cur = (R - 1, C - 1)
             while cur is not None:
-                path_cells.add(cur); cur = prev.get(cur)
+                path_cells.add(cur)
+                cur = prev.get(cur)
 
         fig, ax = plt.subplots(figsize=(7, 7), facecolor="#0d0d0d")
         ax.set_facecolor("#0d0d0d")
-        ax.set_xlim(-0.5, C + 0.5); ax.set_ylim(-0.5, R + 0.5)
-        ax.set_aspect("equal"); ax.axis("off")
+        ax.set_xlim(-0.5, C + 0.5)
+        ax.set_ylim(-0.5, R + 0.5)
+        ax.set_aspect("equal")
+        ax.axis("off")
         lw = max(0.5, 4.0 / max(R, C) * 8)
 
         for (pr, pc) in path_cells:
@@ -118,7 +136,9 @@ class MazeRenderer(BasePattern):
         ax.set_title(f"Maze {R}x{C} — Recursive Backtracker + BFS Solver",
                      color="#aaaaaa", fontsize=10, pad=6)
         self._fig = fig
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         import ipywidgets as widgets
@@ -140,7 +160,8 @@ class CellularAutomatonRenderer(BasePattern):
         from scipy.ndimage import convolve
         from engines.color_utils import ColorUtils
         rng = np.random.default_rng(int(seed))
-        N = int(grid_size); gens = int(generations)
+        N = int(grid_size)
+        gens = int(generations)
         grid = (rng.random((N, N)) < float(density)).astype(np.uint8)
         age  = grid.copy().astype(float)
         kernel = np.array([[1,1,1],[1,0,1],[1,1,1]], dtype=np.uint8)
@@ -154,9 +175,11 @@ class CellularAutomatonRenderer(BasePattern):
         cmap = ColorUtils.make_colormap(palette)
         rgba = cmap(age_norm)
         dead = grid == 0
-        rgba[dead, :3] = 0.04; rgba[dead, 3] = 1.0
+        rgba[dead, :3] = 0.04
+        rgba[dead, 3] = 1.0
         fig, ax = plt.subplots(figsize=(7, 7), facecolor="#060606")
-        ax.set_facecolor("#060606"); ax.axis("off")
+        ax.set_facecolor("#060606")
+        ax.axis("off")
         ax.imshow(rgba, origin="upper", interpolation="nearest")
         pop = int(grid.sum())
         ax.set_title(f"Conway's Game of Life — {N}x{N}, {gens} generations",
@@ -165,7 +188,9 @@ class CellularAutomatonRenderer(BasePattern):
                 ha="center", va="top", transform=ax.transAxes,
                 color="#888888", fontsize=9)
         self._fig = fig
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         import ipywidgets as widgets
@@ -186,13 +211,15 @@ class DungeonRenderer(BasePattern):
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                grid_size=60, n_rooms=12, seed=7, **kwargs):
         rng = np.random.default_rng(int(seed))
-        G = int(grid_size); n_rooms = int(n_rooms)
+        G = int(grid_size)
+        n_rooms = int(n_rooms)
         dungeon = np.zeros((G, G), dtype=np.uint8)
         rooms = []
         min_sz, max_sz = 4, max(5, G // 6)
 
         for _ in range(n_rooms * 10):
-            if len(rooms) >= n_rooms: break
+            if len(rooms) >= n_rooms:
+                break
             w = rng.integers(min_sz, max_sz + 1)
             h = rng.integers(min_sz, max_sz + 1)
             x = rng.integers(1, G - w - 1)
@@ -211,7 +238,8 @@ class DungeonRenderer(BasePattern):
             for cy in range(min(y1,y2), max(y1,y2)+1):
                 dungeon[cy,x2] = 2 if dungeon[cy,x2]==0 else dungeon[cy,x2]
 
-        order = list(range(len(rooms))); rng.shuffle(order)
+        order = list(range(len(rooms)))
+        rng.shuffle(order)
         ro = [rooms[i] for i in order]
         for i in range(len(ro)-1):
             corridor(*center(ro[i]), *center(ro[i+1]))
@@ -224,12 +252,15 @@ class DungeonRenderer(BasePattern):
             img[ry+rh//2, rx+rw//2] = [1.0, 0.85, 0.3]
 
         fig, ax = plt.subplots(figsize=(7, 7), facecolor="#080808")
-        ax.set_facecolor("#080808"); ax.axis("off")
+        ax.set_facecolor("#080808")
+        ax.axis("off")
         ax.imshow(img, origin="upper", interpolation="nearest")
         ax.set_title(f"Dungeon — {len(rooms)} rooms on {G}x{G} grid",
                      color="#aaaaaa", fontsize=10, pad=6)
         self._fig = fig
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         import ipywidgets as widgets
@@ -248,11 +279,13 @@ class RetroStarfieldRenderer(BasePattern):
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                n_stars=800, warp=0.4, seed=0, **kwargs):
         rng = np.random.default_rng(int(seed))
-        n = int(n_stars); warp = float(warp)
+        n = int(n_stars)
+        warp = float(warp)
         x3 = rng.uniform(-1.0, 1.0, n)
         y3 = rng.uniform(-1.0, 1.0, n)
         z  = rng.power(1.0 + warp * 4, n)
-        px = x3 / (z + 0.01); py = y3 / (z + 0.01)
+        px = x3 / (z + 0.01)
+        py = y3 / (z + 0.01)
         mask = (np.abs(px) < 2.0) & (np.abs(py) < 2.0)
         px, py, z = px[mask], py[mask], z[mask]
         brightness = 1.0 - z
@@ -267,8 +300,10 @@ class RetroStarfieldRenderer(BasePattern):
 
         fig, ax = plt.subplots(figsize=(7, 7), facecolor="#000005")
         ax.set_facecolor("#000005")
-        ax.set_xlim(-2, 2); ax.set_ylim(-2, 2)
-        ax.set_aspect("equal"); ax.axis("off")
+        ax.set_xlim(-2, 2)
+        ax.set_ylim(-2, 2)
+        ax.set_aspect("equal")
+        ax.axis("off")
         for xi, yi, dl in zip(sx, sy, streak_len):
             ax.plot([xi, xi*(1+dl)], [yi, yi*(1+dl)],
                     color="white", lw=0.4, alpha=0.35, zorder=1)
@@ -279,7 +314,9 @@ class RetroStarfieldRenderer(BasePattern):
         ax.set_title(f"Retro Starfield — {len(px)} stars, warp={warp:.1f}",
                      color="#6688aa", fontsize=10, pad=6)
         self._fig = fig
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         import ipywidgets as widgets
@@ -307,10 +344,12 @@ class BreakoutBrickRenderer(BasePattern):
         vals  = np.zeros((R, C), dtype=float)
 
         if style == 0:
-            for r in range(R): vals[r, :] = r / max(R-1, 1)
+            for r in range(R):
+                vals[r, :] = r / max(R-1, 1)
         elif style == 1:
             for r in range(R):
-                for c in range(C): vals[r, c] = (r + c) % 2
+                for c in range(C):
+                    vals[r, c] = (r + c) % 2
         elif style == 2:
             cx, cy = C/2.0, R/2.0
             for r in range(R):
@@ -324,20 +363,27 @@ class BreakoutBrickRenderer(BasePattern):
         if style == 3:
             present = rng.random((R, C)) > 0.15
 
-        pad = 0.04; bw = (1.0 - 2*pad) / C
-        bh  = (0.55 - pad) / R; gap = 0.004; top_y = 0.95
+        pad = 0.04
+        bw = (1.0 - 2*pad) / C
+        bh = (0.55 - pad) / R
+        gap = 0.004
+        top_y = 0.95
 
         fig, ax = plt.subplots(figsize=(8, 6), facecolor="#0a0a10")
         ax.set_facecolor("#0a0a10")
-        ax.set_xlim(0,1); ax.set_ylim(0,1)
-        ax.set_aspect("auto"); ax.axis("off")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_aspect("auto")
+        ax.axis("off")
 
         for r in range(R):
             for c in range(C):
-                if not present[r, c]: continue
+                if not present[r, c]:
+                    continue
                 x = pad + c*bw + gap
                 y = top_y - (r+1)*bh + gap
-                w = bw - 2*gap; h = bh - 2*gap
+                w = bw - 2*gap
+                h = bh - 2*gap
                 color = cmap(vals[r, c])
                 ax.add_patch(patches.FancyBboxPatch(
                     (x,y), w, h, boxstyle="round,pad=0.002",
@@ -347,7 +393,8 @@ class BreakoutBrickRenderer(BasePattern):
                     boxstyle="round,pad=0.001",
                     facecolor="white", alpha=0.28, edgecolor="none", zorder=3))
 
-        pw = 0.18; px = 0.5 - pw/2
+        pw = 0.18
+        px = 0.5 - pw/2
         ax.add_patch(patches.FancyBboxPatch(
             (px, 0.05), pw, 0.025, boxstyle="round,pad=0.003",
             facecolor="#b0c8ff", edgecolor="#5080cc", linewidth=1.5, zorder=4))
@@ -359,7 +406,9 @@ class BreakoutBrickRenderer(BasePattern):
         ax.set_title(f"Breakout Brick Map — {R}x{C}, Style: {names[style]}",
                      color="#aaaaaa", fontsize=10, pad=6)
         self._fig = fig
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         import ipywidgets as widgets
@@ -403,29 +452,42 @@ class PacManGhostRenderer(BasePattern):
                          key=lambda p: abs(p[0]-N//2)+abs(p[1]-N//2))
         cands = [p for p in open_cells
                  if abs(p[0]-pacman_pos[0])+abs(p[1]-pacman_pos[1]) > N//3]
-        if len(cands) < n_ghosts: cands = open_cells
-        ghost_positions = []; used = {pacman_pos}
+        if len(cands) < n_ghosts:
+            cands = open_cells
+        ghost_positions = []
+        used = {pacman_pos}
         for _ in range(int(n_ghosts)):
             for _ in range(200):
                 pos = cands[rng.integers(len(cands))]
                 if pos not in used:
-                    ghost_positions.append(pos); used.add(pos); break
+                    ghost_positions.append(pos)
+                    used.add(pos)
+                    break
 
         g_cols  = ["#FF0000","#FFB8FF","#00FFFF","#FFB852"]
         g_names = ["Blinky","Pinky","Inky","Clyde"]
 
         def bfs(start, goal):
-            if start == goal: return [start]
-            prev = {start: None}; q = [start]; qi = 0
+            if start == goal:
+                return [start]
+            prev = {start: None}
+            q = [start]
+            qi = 0
             while qi < len(q):
-                r, c = q[qi]; qi += 1
-                if (r,c) == goal: break
+                r, c = q[qi]
+                qi += 1
+                if (r, c) == goal:
+                    break
                 for dr, dc in [(-1,0),(1,0),(0,-1),(0,1)]:
                     nr, nc = r+dr, c+dc
                     if 0<=nr<N and 0<=nc<N and maze[nr,nc]==0 and (nr,nc) not in prev:
-                        prev[(nr,nc)] = (r,c); q.append((nr,nc))
-            path = []; cur = goal
-            while cur is not None: path.append(cur); cur = prev.get(cur)
+                        prev[(nr, nc)] = (r, c)
+                        q.append((nr, nc))
+            path = []
+            cur = goal
+            while cur is not None:
+                path.append(cur)
+                cur = prev.get(cur)
             path.reverse()
             return path if path and path[0] == start else []
 
@@ -433,8 +495,10 @@ class PacManGhostRenderer(BasePattern):
 
         fig, ax = plt.subplots(figsize=(7, 7), facecolor="#000033")
         ax.set_facecolor("#000033")
-        ax.set_xlim(-0.5, N-0.5); ax.set_ylim(-0.5, N-0.5)
-        ax.set_aspect("equal"); ax.axis("off")
+        ax.set_xlim(-0.5, N-0.5)
+        ax.set_ylim(-0.5, N-0.5)
+        ax.set_aspect("equal")
+        ax.axis("off")
 
         img = np.zeros((N, N, 3), dtype=float)
         img[maze==1] = [0.05, 0.05, 0.55]
@@ -443,15 +507,18 @@ class PacManGhostRenderer(BasePattern):
                   extent=[-0.5, N-0.5, -0.5, N-0.5])
 
         for path, gcol in zip(ghost_paths, g_cols):
-            if len(path) < 2: continue
-            ys = [N-1-p[0] for p in path]; xs = [p[1] for p in path]
+            if len(path) < 2:
+                continue
+            ys = [N-1-p[0] for p in path]
+            xs = [p[1] for p in path]
             ax.plot(xs, ys, color=gcol, lw=2.5, alpha=0.55, zorder=2,
                     solid_capstyle="round")
             ax.scatter(xs[1:-1], ys[1:-1], s=8, color=gcol,
                        alpha=0.35, zorder=3, linewidths=0)
 
         def draw_ghost(r, c, color, label):
-            x = c; y = N-1-r
+            x = c
+            y = N-1-r
             ax.add_patch(patches.FancyBboxPatch(
                 (x-0.38, y-0.42), 0.76, 0.80, boxstyle="round,pad=0.05",
                 facecolor=color, edgecolor="none", zorder=5))
@@ -471,7 +538,8 @@ class PacManGhostRenderer(BasePattern):
             draw_ghost(gp[0], gp[1], gcol,
                        g_names[gi] if gi < len(g_names) else f"G{gi+1}")
 
-        pr, pc = pacman_pos; px_x, px_y = pc, N-1-pr
+        pr, pc = pacman_pos
+        px_x, px_y = pc, N-1-pr
         ax.add_patch(patches.Wedge(
             (px_x, px_y), 0.42, 30, 330,
             facecolor="#FFE000", edgecolor="none", zorder=5))
@@ -479,7 +547,8 @@ class PacManGhostRenderer(BasePattern):
             (px_x+0.10, px_y+0.18), 0.06, facecolor="black", zorder=6))
 
         for (pr2,pc2) in open_cells:
-            if (pr2,pc2)==pacman_pos or any((pr2,pc2)==gp for gp in ghost_positions): continue
+            if (pr2, pc2) == pacman_pos or any((pr2, pc2) == gp for gp in ghost_positions):
+                continue
             ax.add_patch(patches.Circle(
                 (pc2, N-1-pr2), 0.06, facecolor="#ffee88",
                 alpha=0.3, edgecolor="none", zorder=2))
@@ -487,7 +556,9 @@ class PacManGhostRenderer(BasePattern):
         ax.set_title(f"Pac-Man Ghost Pathfinding — BFS on {N}x{N} maze",
                      color="#aaaaaa", fontsize=10, pad=6)
         self._fig = fig
-        plt.tight_layout(); plt.show(); plt.close(fig)
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
 
     def get_controls(self):
         import ipywidgets as widgets
