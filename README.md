@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **66 / 100** — in progress |
+| Pattern implementations | **70 / 100** — in progress |
 
 **Progress by group:**
 
@@ -32,7 +32,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Geometric & Mathematical (1–20) | 20 | 20 ✅ |
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
-| 2D Game-Style (61–70) | 6 | 10 |
+| 2D Game-Style (61–70) | 10 | 10 ✅ |
 | 3D Objects & Sculptures (71–90) | 0 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
 
@@ -177,7 +177,7 @@ visual_engine/
 | 59 | Cubist Portrait Filter | Delaunay triangulation on n points + 36 border guards, centroid-sampled noise field |
 | 60 | Abstract Expressionism Drip | Velocity-damped random walk v×=0.97 − gravity, terminal splatter Circle patches |
 
-### 2D Game-Style (61–70) — 6/10 complete
+### 2D Game-Style (61–70) — 10/10 complete ✅
 
 | # | Pattern | Key Technique |
 |---|---------|---------------|
@@ -187,6 +187,10 @@ visual_engine/
 | 64 | Retro Starfield | Perspective projection x/z, y/z; power-law depth distribution; motion streaks |
 | 65 | Breakout Brick Map | 4 colouring styles (row/checker/radial/noise); bevel highlight via `FancyBboxPatch` |
 | 66 | Pac-Man Ghost Pathfinding | BFS predecessor map on DFS-carved perfect maze; ghost/Pac-Man sprite rendering |
+| 67 | Platformer Terrain Gen | 1D fBm via cubic-spline octave stack; grassy/cave/snow themes; platforms + coins + player |
+| 68 | Bullet Hell Pattern | 5 danmaku patterns (burst/spiral/fan/cross/scatter); glow scatter + guide rings |
+| 69 | Card Suit Patterns | Parametric heart `16sin³t`; rhombus/triple-circle/inverted-heart suits; 3 layouts |
+| 70 | Pixel Flag Generator | 6 grammar designs (stripes/cross/diagonal/triband+star/noise); 5× pixel upscale |
 
 ---
 
