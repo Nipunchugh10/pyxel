@@ -569,9 +569,167 @@ class PacManGhostRenderer(BasePattern):
             widgets.IntSlider(value=5, min=0, max=99, description="seed"),
         ]
 
-class PlatformerTerrainRenderer(_StubMixin, BasePattern):
+
+# ── 67. Platformer Terrain Gen ────────────────────────────────────────────────
+
+class PlatformerTerrainRenderer(BasePattern):
     name = "Platformer Terrain Gen"
     group = "2D Game-Style"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               seed=42, n_platforms=8, style=0, **kwargs):
+        from scipy.interpolate import interp1d
+        rng  = np.random.default_rng(int(seed))
+        style = int(style) % 3      # 0=grassy  1=cave  2=snow
+        W = 200                      # terrain sample points
+
+        # ── 1D fBm terrain height ──────────────────────────────────────────
+        def fbm1d(n, octaves=4, scale=20):
+            h = np.zeros(n)
+            amp, total = 1.0, 0.0
+            for k in range(octaves):
+                freq = 2 ** k
+                pts  = max(4, n // scale * freq + 2)
+                ctrl = rng.uniform(0, 1, pts)
+                f    = interp1d(np.linspace(0, 1, pts), ctrl, kind='cubic')
+                h   += amp * f(np.linspace(0, 1, n))
+                total += amp
+                amp  *= 0.5
+            return h / total
+
+        ground = fbm1d(W)
+        ground = 0.08 + 0.38 * (ground - ground.min()) / (
+                 ground.max() - ground.min() + 1e-9)
+
+        # ── Style palette ──────────────────────────────────────────────────
+        if style == 0:     # grassy
+            bg_col, dirt_col, grass_col = "#87CEEB", "#7a4a1e", "#3d7a2e"
+            plat_col, plat_top_col = "#5c4a3a", "#7a6040"
+            title_col = "#224422"
+        elif style == 1:   # cave
+            bg_col, dirt_col, grass_col = "#111120", "#3a3a4e", "#5a5a6e"
+            plat_col, plat_top_col = "#404055", "#6070a0"
+            title_col = "#aaaacc"
+        else:              # snow
+            bg_col, dirt_col, grass_col = "#b0cce8", "#708090", "#f0f4f8"
+            plat_col, plat_top_col = "#808898", "#c0ccd8"
+            title_col = "#334455"
+
+        # ── Floating platforms ─────────────────────────────────────────────
+        platforms = []
+        for _ in range(int(n_platforms)):
+            px = rng.uniform(0.04, 0.82)
+            py = rng.uniform(0.32, 0.68)
+            pw = rng.uniform(0.06, 0.16)
+            # Reject platforms that sit below the terrain height at that x
+            gidx = int(np.clip(px * W, 0, W - 1))
+            if py > ground[gidx] + 0.08:
+                platforms.append((px, py, pw))
+
+        # ── Coins ──────────────────────────────────────────────────────────
+        coins = []
+        for _ in range(14):
+            if rng.random() < 0.55 and platforms:
+                pp = platforms[rng.integers(len(platforms))]
+                cx = pp[0] + rng.uniform(0.01, max(0.01, pp[2] - 0.02))
+                cy = pp[1] + 0.032
+            else:
+                cx  = rng.uniform(0.03, 0.97)
+                gidx = int(np.clip(cx * W, 0, W - 1))
+                cy  = ground[gidx] + 0.04
+            coins.append((cx, cy))
+
+        # ── Draw ──────────────────────────────────────────────────────────
+        fig, ax = plt.subplots(figsize=(10, 5), facecolor=bg_col)
+        ax.set_facecolor(bg_col)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_aspect("auto")
+        ax.axis("off")
+
+        # Sky gradient (20 bands)
+        sky_top = np.array(patches.mcolors.to_rgb(bg_col)) * 0.85 + 0.15
+        sky_bot = np.array(patches.mcolors.to_rgb(bg_col))
+        for i in range(20):
+            t   = i / 19
+            col = (1 - t) * sky_top + t * sky_bot
+            y0  = 0.5 + t * 0.5 / 20
+            ax.axhspan(y0, y0 + 0.5 / 20 + 0.002,
+                       facecolor=col, edgecolor="none", zorder=0)
+
+        # Ground fill
+        xs = np.linspace(0, 1, W)
+        ax.fill(np.concatenate([[0], xs, [1]]),
+                np.concatenate([[0], ground, [0]]),
+                color=dirt_col, zorder=2)
+
+        # Grass top strip
+        for i in range(W - 1):
+            ax.fill([i/W, (i+1)/W, (i+1)/W, i/W],
+                    [ground[i], ground[i+1],
+                     ground[i+1] + 0.013, ground[i] + 0.013],
+                    color=grass_col, zorder=3, linewidth=0)
+
+        # Platforms
+        for (px2, py2, pw) in platforms:
+            ax.add_patch(patches.FancyBboxPatch(
+                (px2, py2 - 0.018), pw, 0.026,
+                boxstyle="round,pad=0.002",
+                facecolor=plat_col, edgecolor="none", zorder=4))
+            ax.add_patch(patches.Rectangle(
+                (px2, py2 + 0.005), pw, 0.009,
+                facecolor=plat_top_col, edgecolor="none", zorder=5))
+
+        # Coins
+        coin_col = "#FFD700"
+        for (cx2, cy2) in coins:
+            ax.add_patch(patches.Circle((cx2, cy2), 0.009,
+                         facecolor=coin_col, edgecolor="#b8940a",
+                         linewidth=0.7, zorder=6))
+            ax.add_patch(patches.Circle((cx2 - 0.002, cy2 + 0.002),
+                         0.004, facecolor="#ffe566",
+                         edgecolor="none", zorder=7))
+
+        # Player (small platformer hero)
+        p_xi = W // 5
+        px3  = p_xi / W
+        py3  = ground[p_xi] + 0.013
+        body_col = "#2244cc"
+        ax.add_patch(patches.FancyBboxPatch(
+            (px3 - 0.011, py3), 0.022, 0.032,
+            boxstyle="round,pad=0.002",
+            facecolor=body_col, edgecolor="none", zorder=8))
+        ax.add_patch(patches.Circle(
+            (px3, py3 + 0.043), 0.014,
+            facecolor="#f4c68c", edgecolor="none", zorder=8))
+        # Hat
+        ax.add_patch(patches.Rectangle(
+            (px3 - 0.014, py3 + 0.048), 0.028, 0.010,
+            facecolor="#cc2222", edgecolor="none", zorder=9))
+        ax.add_patch(patches.Rectangle(
+            (px3 - 0.010, py3 + 0.058), 0.020, 0.013,
+            facecolor="#cc2222", edgecolor="none", zorder=9))
+
+        style_names = ["Grassy", "Cave", "Snow"]
+        ax.set_title(
+            f"Platformer Terrain — {style_names[style]} | "
+            f"{len(platforms)} platforms, {len(coins)} coins",
+            color=title_col, fontsize=10, pad=6)
+
+        self._fig = fig
+        plt.tight_layout()
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as widgets
+        return [
+            widgets.IntSlider(value=42, min=0, max=999, description="seed"),
+            widgets.IntSlider(value=8, min=2, max=16, description="n_platforms"),
+            widgets.Dropdown(
+                options=[("Grassy", 0), ("Cave", 1), ("Snow", 2)],
+                value=0, description="style"),
+        ]
 
 class BulletHellRenderer(_StubMixin, BasePattern):
     name = "Bullet Hell Pattern"
