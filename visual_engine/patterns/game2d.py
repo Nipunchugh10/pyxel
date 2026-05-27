@@ -648,8 +648,9 @@ class PlatformerTerrainRenderer(BasePattern):
         ax.axis("off")
 
         # Sky gradient (20 bands)
-        sky_top = np.array(patches.mcolors.to_rgb(bg_col)) * 0.85 + 0.15
-        sky_bot = np.array(patches.mcolors.to_rgb(bg_col))
+        import matplotlib.colors as _mcolors
+        sky_top = np.array(_mcolors.to_rgb(bg_col)) * 0.85 + 0.15
+        sky_bot = np.array(_mcolors.to_rgb(bg_col))
         for i in range(20):
             t   = i / 19
             col = (1 - t) * sky_top + t * sky_bot
