@@ -181,9 +181,72 @@ class KleinBottleRenderer(BasePattern):
             w.IntSlider(value=45, min=0,   max=360, step=5, description="view_azim"),
         ]
 
-class MobiusStripRenderer(_StubMixin, BasePattern):
-    name = "Mobius Strip"
+class MobiusStripRenderer(BasePattern):
+    """73 — Möbius Strip"""
+    name  = "Mobius Strip"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
+               width=0.6, twist=1, alpha=0.9, view_elev=30, view_azim=60, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 80, "Medium": 160, "High": 320}
+        n_u = _RES.get(resolution, 80)
+        n_v = 20
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cmap = LinearSegmentedColormap.from_list("mob", cols, N=256)
+
+        u = np.linspace(0, 2 * np.pi, n_u)
+        v = np.linspace(-width, width, n_v)
+        U, V = np.meshgrid(u, v)
+
+        # Möbius strip parametric equations (twist half-turns)
+        phi = twist * U / 2
+        X = (1 + V * np.cos(phi)) * np.cos(U)
+        Y = (1 + V * np.cos(phi)) * np.sin(U)
+        Z = V * np.sin(phi)
+
+        # Colour by azimuthal angle u
+        Un = U / (2 * np.pi)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.plot_surface(X, Y, Z, facecolors=cmap(Un), alpha=alpha,
+                        linewidth=0, antialiased=True, shade=True)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=1, min=1, max=5, step=1,        description="twist"),
+            w.FloatSlider(value=0.6, min=0.1, max=1.0, step=0.1, description="width"),
+            w.FloatSlider(value=0.9, min=0.2, max=1.0, step=0.05, description="alpha"),
+            w.IntSlider(value=60, min=0, max=360, step=5,      description="view_azim"),
+        ]
 
 class TorusKnotRenderer(_StubMixin, BasePattern):
     name = "Torus Knot"
