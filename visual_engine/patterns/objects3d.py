@@ -114,9 +114,72 @@ class DNAHelixRenderer(BasePattern):
             w.Checkbox(value=True,                         description="show_rungs"),
         ]
 
-class KleinBottleRenderer(_StubMixin, BasePattern):
-    name = "Klein Bottle Surface"
+class KleinBottleRenderer(BasePattern):
+    """72 — Klein Bottle Surface"""
+    name  = "Klein Bottle Surface"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_u=80, n_v=80, alpha=0.75, view_elev=25, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 60, "Medium": 90, "High": 130}
+        n_u = _RES.get(resolution, n_u)
+        n_v = n_u
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list("kb", cols, N=256)
+
+        u = np.linspace(0, 2 * np.pi, n_u)
+        v = np.linspace(0, 2 * np.pi, n_v)
+        U, V = np.meshgrid(u, v)
+
+        # Standard immersion of the Klein bottle in R^3
+        # (figure-8 immersion — self-intersects along a circle)
+        half = U / 2
+        X = (2 + np.cos(half) * np.sin(V) - np.sin(half) * np.sin(2 * V)) * np.cos(U)
+        Y = (2 + np.cos(half) * np.sin(V) - np.sin(half) * np.sin(2 * V)) * np.sin(U)
+        Z =  np.sin(half) * np.sin(V) + np.cos(half) * np.sin(2 * V)
+
+        # Colour by Z height
+        Zn = (Z - Z.min()) / (Z.max() - Z.min() + 1e-9)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.plot_surface(X, Y, Z, facecolors=cmap(Zn), alpha=alpha,
+                        linewidth=0, antialiased=True, shade=True)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=0.75, min=0.2, max=1.0, step=0.05, description="alpha"),
+            w.IntSlider(value=25, min=-90, max=90,  step=5, description="view_elev"),
+            w.IntSlider(value=45, min=0,   max=360, step=5, description="view_azim"),
+        ]
 
 class MobiusStripRenderer(_StubMixin, BasePattern):
     name = "Mobius Strip"
