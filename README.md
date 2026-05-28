@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **70 / 100** — in progress |
+| Pattern implementations | **76 / 100** — in progress |
 
 **Progress by group:**
 
@@ -33,7 +33,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 10 | 10 ✅ |
-| 3D Objects & Sculptures (71–90) | 0 | 20 |
+| 3D Objects & Sculptures (71–90) | 6 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
 
 ---
@@ -191,6 +191,17 @@ visual_engine/
 | 68 | Bullet Hell Pattern | 5 danmaku patterns (burst/spiral/fan/cross/scatter); glow scatter + guide rings |
 | 69 | Card Suit Patterns | Parametric heart `16sin³t`; rhombus/triple-circle/inverted-heart suits; 3 layouts |
 | 70 | Pixel Flag Generator | 6 grammar designs (stripes/cross/diagonal/triband+star/noise); 5× pixel upscale |
+
+### 3D Objects & Sculptures (71–90) — 6/20 in progress
+
+| # | Pattern | Key Technique |
+|---|---------|---------------|
+| 71 | Rotating DNA Helix | Two helical strands as 3D scatter + gradient colouring via `LinearSegmentedColormap`, base-pair rungs as `ax.plot` segments |
+| 72 | Klein Bottle Surface | Figure-8 immersion parametric surface `X=(2+cos(U/2)sinV−sin(U/2)sin2V)cosU`, `ax.plot_surface` with height-based palette |
+| 73 | Mobius Strip | Parametric `x=(1+v·cos(u/2))cos u`, twist multiplier for N half-turns, `ax.plot_surface` with azimuthal colouring |
+| 74 | Torus Knot | `T(p,q)` curve `x=(R+r·cos qt)cos pt`, gradient `Line3DCollection` segments |
+| 75 | Gyroid Surface | Implicit `cos x·sin y+cos y·sin z+cos z·sin x=0` scatter near zero level-set from 3D meshgrid |
+| 76 | Romanesco Broccoli | Golden-angle phyllotaxis spiral `φ_g≈2.400 rad`, conical bud placement with recursive sub-bud clusters, `ax.scatter` |
 
 ---
 
