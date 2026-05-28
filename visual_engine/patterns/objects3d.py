@@ -5,9 +5,10 @@ Each class is a stub that will be replaced with full implementations during Phas
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+import numpy as np
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from engines.renderer import BasePattern
 
 
@@ -37,10 +38,81 @@ class _StubMixin:
     def get_controls(self):
         return []
 
-
-class DNAHelixRenderer(_StubMixin, BasePattern):
-    name = "Rotating DNA Helix"
+class DNAHelixRenderer(BasePattern):
+    """71 — Rotating DNA Helix"""
+    name  = "Rotating DNA Helix"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               n_turns=4, n_points=600, view_elev=20, view_azim=30,
+               show_rungs=True, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        import matplotlib.colors as mcolors
+
+        _RES_SCALE = {"Low": 0.6, "Medium": 1.0, "High": 1.4}
+        scale = _RES_SCALE.get(resolution, 1.0)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Inferno"])
+
+        N = int(n_points * scale)
+        t = np.linspace(0, n_turns * 2 * np.pi, N)
+
+        # Two backbone strands
+        r = 1.0
+        x1 =  r * np.cos(t);  y1 =  r * np.sin(t);  z1 = t / (2 * np.pi)
+        x2 =  r * np.cos(t + np.pi); y2 = r * np.sin(t + np.pi); z2 = z1
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        heights = (z1 - z1.min()) / (z1.max() - z1.min() + 1e-9)
+
+        # Gradient colouring via segments
+        from matplotlib.colors import LinearSegmentedColormap
+        cmap = LinearSegmentedColormap.from_list("dna", [cols[0], cols[2], cols[3]], N=256)
+
+        ax.scatter(x1, y1, z1, c=cmap(heights), s=8 * scale, depthshade=True, zorder=2)
+        ax.scatter(x2, y2, z2, c=cmap(1 - heights), s=8 * scale, depthshade=True, zorder=2)
+
+        # Base-pair rungs
+        if show_rungs:
+            n_rungs = int(n_turns * 10)
+            rung_idx = np.linspace(0, N - 1, n_rungs, dtype=int)
+            rung_cols = ["#ff4466", "#44aaff", "#44ff88", "#ffcc00"]
+            for k, ri in enumerate(rung_idx):
+                rc = rung_cols[k % 4]
+                ax.plot([x1[ri], x2[ri]], [y1[ri], y2[ri]], [z1[ri], z2[ri]],
+                        color=rc, linewidth=1.2 * scale, alpha=0.7, zorder=1)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=4, min=2, max=8, step=1,   description="n_turns"),
+            w.IntSlider(value=30, min=0, max=180, step=5, description="view_azim"),
+            w.Checkbox(value=True,                         description="show_rungs"),
+        ]
 
 class KleinBottleRenderer(_StubMixin, BasePattern):
     name = "Klein Bottle Surface"
@@ -117,3 +189,4 @@ class VolumetricFogRenderer(_StubMixin, BasePattern):
 class StrangeAttractor3DRenderer(_StubMixin, BasePattern):
     name = "Strange Attractor 3D"
     group = "3D Objects & Sculptures"
+
