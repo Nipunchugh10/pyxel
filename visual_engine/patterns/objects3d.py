@@ -248,9 +248,71 @@ class MobiusStripRenderer(BasePattern):
             w.IntSlider(value=60, min=0, max=360, step=5,      description="view_azim"),
         ]
 
-class TorusKnotRenderer(_StubMixin, BasePattern):
-    name = "Torus Knot"
+class TorusKnotRenderer(BasePattern):
+    """74 — Torus Knot"""
+    name  = "Torus Knot"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               p=3, q=2, R=2.0, r=0.5, tube_pts=12, view_elev=30, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
+        _RES = {"Low": 600, "Medium": 1200, "High": 2400}
+        N = _RES.get(resolution, 600)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cmap = LinearSegmentedColormap.from_list("tk", cols, N=256)
+
+        t = np.linspace(0, 2 * np.pi, N)
+        # Torus knot T(p,q)
+        ct = np.cos(q * t);  st = np.sin(q * t)
+        X = (R + r * ct) * np.cos(p * t)
+        Y = (R + r * ct) * np.sin(p * t)
+        Z = r * st
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # Draw as colour-gradient line using Line3DCollection segments
+        pts   = np.array([X, Y, Z]).T
+        segs  = np.stack([pts[:-1], pts[1:]], axis=1)
+        colors = cmap(np.linspace(0, 1, len(segs)))
+        lc = Line3DCollection(segs, colors=colors, linewidth=1.8, alpha=0.9)
+        ax.add_collection(lc)
+        ax.auto_scale_xyz(X, Y, Z)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=3, min=2, max=7, step=1, description="p"),
+            w.IntSlider(value=2, min=1, max=6, step=1, description="q"),
+            w.IntSlider(value=30, min=0, max=90,  step=5, description="view_elev"),
+            w.IntSlider(value=45, min=0, max=360, step=5, description="view_azim"),
+        ]
 
 class GyroidRenderer(_StubMixin, BasePattern):
     name = "Gyroid Surface"
