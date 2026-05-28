@@ -314,9 +314,71 @@ class TorusKnotRenderer(BasePattern):
             w.IntSlider(value=45, min=0, max=360, step=5, description="view_azim"),
         ]
 
-class GyroidRenderer(_StubMixin, BasePattern):
-    name = "Gyroid Surface"
+class GyroidRenderer(BasePattern):
+    """75 — Gyroid Surface"""
+    name  = "Gyroid Surface"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
+               threshold=0.10, n_grid=40, point_size=4, view_elev=25, view_azim=40, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 30, "Medium": 45, "High": 60}
+        n_grid = _RES.get(resolution, n_grid)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cmap = LinearSegmentedColormap.from_list("gy", cols, N=256)
+
+        lin = np.linspace(-2 * np.pi, 2 * np.pi, n_grid)
+        gx, gy, gz = np.meshgrid(lin, lin, lin)
+
+        # Gyroid implicit surface: cos(x)sin(y) + cos(y)sin(z) + cos(z)sin(x) = 0
+        F = (np.cos(gx) * np.sin(gy) +
+             np.cos(gy) * np.sin(gz) +
+             np.cos(gz) * np.sin(gx))
+
+        mask = np.abs(F) < threshold
+        xs, ys, zs = gx[mask], gy[mask], gz[mask]
+
+        heights = (zs - zs.min()) / (zs.max() - zs.min() + 1e-9)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.scatter(xs, ys, zs, c=cmap(heights), s=point_size,
+                   alpha=0.6, depthshade=True)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=0.10, min=0.02, max=0.3, step=0.01, description="threshold"),
+            w.IntSlider(value=4, min=1, max=12, step=1,              description="point_size"),
+            w.IntSlider(value=25,  min=-90, max=90,  step=5, description="view_elev"),
+            w.IntSlider(value=40,  min=0,   max=360, step=5, description="view_azim"),
+        ]
 
 class RomanescoRenderer(_StubMixin, BasePattern):
     name = "Romanesco Broccoli"
