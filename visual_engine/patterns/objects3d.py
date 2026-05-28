@@ -380,9 +380,87 @@ class GyroidRenderer(BasePattern):
             w.IntSlider(value=40,  min=0,   max=360, step=5, description="view_azim"),
         ]
 
-class RomanescoRenderer(_StubMixin, BasePattern):
-    name = "Romanesco Broccoli"
+class RomanescoRenderer(BasePattern):
+    """76 — Romanesco Broccoli"""
+    name  = "Romanesco Broccoli"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Forest", speed=1.0,
+               n_buds=500, n_levels=6, view_elev=55, view_azim=30, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 400, "Medium": 800, "High": 1600}
+        n_buds = _RES.get(resolution, n_buds)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Forest"])
+        cmap = LinearSegmentedColormap.from_list("rom", cols, N=256)
+
+        PHI_G = 2.39996323  # golden angle in radians
+        xs, ys, zs, cs = [], [], [], []
+
+        for i in range(n_buds):
+            frac  = i / n_buds
+            angle = i * PHI_G
+            level = int(frac * n_levels)
+            rho   = 0.8 * np.sqrt(frac)            # radial distance expands outward
+            height = frac * 1.5                     # buds spiral upward
+            scale  = (1 - frac) * 0.25 + 0.02      # buds shrink toward top
+
+            # Conical spiral
+            cx = rho * np.cos(angle)
+            cy = rho * np.sin(angle)
+            cz = height
+
+            # Add a small cluster of sub-buds around each main bud
+            n_sub = max(1, int(8 * scale / 0.25))
+            for j in range(n_sub):
+                sub_a = j * PHI_G
+                sub_r = scale * np.sqrt(j / max(n_sub, 1))
+                sx = cx + sub_r * np.cos(sub_a)
+                sy = cy + sub_r * np.sin(sub_a)
+                sz = cz + sub_r * 0.5
+                xs.append(sx); ys.append(sy); zs.append(sz)
+                cs.append(level / n_levels)
+
+        xs = np.array(xs); ys = np.array(ys)
+        zs = np.array(zs); cs = np.array(cs)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        sizes = 20 * (1 - cs) + 2
+        ax.scatter(xs, ys, zs, c=cmap(cs), s=sizes, alpha=0.85, depthshade=True)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=6, min=3, max=10, step=1,        description="n_levels"),
+            w.IntSlider(value=55, min=10, max=90, step=5,       description="view_elev"),
+            w.IntSlider(value=30, min=0, max=360, step=5,       description="view_azim"),
+        ]
 
 class IcosphereRenderer(_StubMixin, BasePattern):
     name = "Icosphere Subdivisions"
