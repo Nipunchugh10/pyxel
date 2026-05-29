@@ -462,9 +462,112 @@ class RomanescoRenderer(BasePattern):
             w.IntSlider(value=30, min=0, max=360, step=5,       description="view_azim"),
         ]
 
-class IcosphereRenderer(_StubMixin, BasePattern):
-    name = "Icosphere Subdivisions"
+class IcosphereRenderer(BasePattern):
+    """77 — Icosphere Subdivisions"""
+    name  = "Icosphere Subdivisions"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
+               subdivisions=2, alpha=0.75, view_elev=20, view_azim=30, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 2, "Medium": 3, "High": 4}
+        subdivisions = _RES.get(resolution, subdivisions)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cmap = LinearSegmentedColormap.from_list("ico", cols, N=256)
+
+        # ── Base icosahedron ──────────────────────────────────────────
+        phi = (1.0 + np.sqrt(5.0)) / 2.0
+        raw = np.array([
+            [-1,  phi, 0], [ 1,  phi, 0], [-1, -phi, 0], [ 1, -phi, 0],
+            [ 0, -1,  phi], [ 0,  1,  phi], [ 0, -1, -phi], [ 0,  1, -phi],
+            [ phi, 0, -1], [ phi, 0,  1], [-phi, 0, -1], [-phi, 0,  1],
+        ], dtype=float)
+        raw /= np.linalg.norm(raw[0])
+        verts = [row.tolist() for row in raw]
+
+        faces = [
+            [0,11,5],[0,5,1],[0,1,7],[0,7,10],[0,10,11],
+            [1,5,9],[5,11,4],[11,10,2],[10,7,6],[7,1,8],
+            [3,9,4],[3,4,2],[3,2,6],[3,6,8],[3,8,9],
+            [4,9,5],[2,4,11],[6,2,10],[8,6,7],[9,8,1],
+        ]
+
+        def subdivide(vl, fl):
+            cache = {}
+            nf = []
+            def mid(i, j):
+                key = (min(i, j), max(i, j))
+                if key not in cache:
+                    m = (np.array(vl[i]) + np.array(vl[j])) * 0.5
+                    m /= np.linalg.norm(m)
+                    cache[key] = len(vl)
+                    vl.append(m.tolist())
+                return cache[key]
+            for a, b, c in fl:
+                ab = mid(a, b); bc = mid(b, c); ca = mid(c, a)
+                nf += [[a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]]
+            return nf
+
+        for _ in range(subdivisions):
+            faces = subdivide(verts, faces)
+
+        V  = np.array(verts)
+        fa = np.array(faces)
+        tri = V[fa]                                        # (F, 3, 3)
+        zc  = tri[:, :, 2].mean(axis=1)                   # centroid Z
+        zmin, zmax = zc.min(), zc.max()
+        cn  = (zc - zmin) / (zmax - zmin + 1e-9)
+        fc  = cmap(cn)                                     # (F, 4) RGBA
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        poly = Poly3DCollection(tri, facecolors=fc,
+                                edgecolors=(1, 1, 1, 0.08), linewidth=0.3,
+                                alpha=alpha)
+        ax.add_collection3d(poly)
+        lim = 1.3
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_zlim(-lim, lim)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=2, min=0, max=4, step=1,
+                        description="subdivisions"),
+            w.FloatSlider(value=0.75, min=0.2, max=1.0, step=0.05,
+                          description="alpha"),
+            w.IntSlider(value=20, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=30, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class TrefoilKnotRenderer(_StubMixin, BasePattern):
     name = "Trefoil Knot"
@@ -517,4 +620,3 @@ class VolumetricFogRenderer(_StubMixin, BasePattern):
 class StrangeAttractor3DRenderer(_StubMixin, BasePattern):
     name = "Strange Attractor 3D"
     group = "3D Objects & Sculptures"
-
