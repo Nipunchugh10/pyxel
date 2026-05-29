@@ -569,9 +569,71 @@ class IcosphereRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class TrefoilKnotRenderer(_StubMixin, BasePattern):
-    name = "Trefoil Knot"
+class TrefoilKnotRenderer(BasePattern):
+    """78 — Trefoil Knot"""
+    name  = "Trefoil Knot"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               linewidth=2.5, view_elev=30, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 600, "Medium": 1200, "High": 2400}
+        N = _RES.get(resolution, 600)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list("tf", cols, N=256)
+
+        t = np.linspace(0, 2 * np.pi, N)
+        # Standard trefoil knot parametrization
+        X = np.sin(t) + 2 * np.sin(2 * t)
+        Y = np.cos(t) - 2 * np.cos(2 * t)
+        Z = -np.sin(3 * t)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        pts    = np.column_stack([X, Y, Z])
+        segs   = np.stack([pts[:-1], pts[1:]], axis=1)
+        colors = cmap(np.linspace(0, 1, len(segs)))
+        lc = Line3DCollection(segs, colors=colors, linewidth=linewidth, alpha=0.95)
+        ax.add_collection(lc)
+        ax.auto_scale_xyz(X, Y, Z)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=2.5, min=0.5, max=6.0, step=0.5,
+                          description="linewidth"),
+            w.IntSlider(value=30, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=45, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class SeashellRenderer(_StubMixin, BasePattern):
     name = "Seashell Surface"
