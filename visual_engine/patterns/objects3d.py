@@ -635,9 +635,78 @@ class TrefoilKnotRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class SeashellRenderer(_StubMixin, BasePattern):
-    name = "Seashell Surface"
+class SeashellRenderer(BasePattern):
+    """79 — Seashell Surface"""
+    name  = "Seashell Surface"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
+               n_turns=3, growth_rate=0.18, tube_scale=0.3, alpha=0.85,
+               view_elev=25, view_azim=60, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": (80, 30), "Medium": (140, 50), "High": (220, 80)}
+        n_u, n_v = _RES.get(resolution, (80, 30))
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cmap = LinearSegmentedColormap.from_list("sh", cols, N=256)
+
+        # Helicospiral seashell with exponential growth
+        # v = coiling angle, u = cross-section angle
+        v = np.linspace(0, 2 * np.pi * n_turns, n_u)
+        u = np.linspace(0, 2 * np.pi, n_v)
+        V, U = np.meshgrid(v, u)
+
+        R = np.exp(growth_rate * V)          # exponentially growing coil radius
+        r = tube_scale * R                   # tube cross-section proportional to R
+
+        X = (R + r * np.cos(U)) * np.cos(V)
+        Y = (R + r * np.cos(U)) * np.sin(V)
+        Z = r * np.sin(U) + 0.4 * V         # gentle upward rise
+
+        Zn = (Z - Z.min()) / (Z.max() - Z.min() + 1e-9)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.plot_surface(X, Y, Z, facecolors=cmap(Zn), alpha=alpha,
+                        linewidth=0, antialiased=True, shade=True)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=3, min=1, max=6, step=1,
+                        description="n_turns"),
+            w.FloatSlider(value=0.18, min=0.05, max=0.4, step=0.01,
+                          description="growth_rate"),
+            w.FloatSlider(value=0.3, min=0.1, max=0.6, step=0.05,
+                          description="tube_scale"),
+            w.IntSlider(value=60, min=0, max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class HyperboloidRenderer(_StubMixin, BasePattern):
     name = "Hyperboloid of Revolution"
