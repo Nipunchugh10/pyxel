@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **76 / 100** — in progress |
+| Pattern implementations | **83 / 100** — in progress |
 
 **Progress by group:**
 
@@ -33,7 +33,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 10 | 10 ✅ |
-| 3D Objects & Sculptures (71–90) | 6 | 20 |
+| 3D Objects & Sculptures (71–90) | 13 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
 
 ---
@@ -192,7 +192,7 @@ visual_engine/
 | 69 | Card Suit Patterns | Parametric heart `16sin³t`; rhombus/triple-circle/inverted-heart suits; 3 layouts |
 | 70 | Pixel Flag Generator | 6 grammar designs (stripes/cross/diagonal/triband+star/noise); 5× pixel upscale |
 
-### 3D Objects & Sculptures (71–90) — 6/20 in progress
+### 3D Objects & Sculptures (71–90) — 13/20 in progress
 
 | # | Pattern | Key Technique |
 |---|---------|---------------|
@@ -202,6 +202,13 @@ visual_engine/
 | 74 | Torus Knot | `T(p,q)` curve `x=(R+r·cos qt)cos pt`, gradient `Line3DCollection` segments |
 | 75 | Gyroid Surface | Implicit `cos x·sin y+cos y·sin z+cos z·sin x=0` scatter near zero level-set from 3D meshgrid |
 | 76 | Romanesco Broccoli | Golden-angle phyllotaxis spiral `φ_g≈2.400 rad`, conical bud placement with recursive sub-bud clusters, `ax.scatter` |
+| 77 | Icosphere Subdivisions | Iterative midpoint subdivision of icosahedron (20·4ⁿ faces), vertices normalised to unit sphere, `Poly3DCollection` |
+| 78 | Trefoil Knot | Parametric `x=sin t+2sin 2t`, `y=cos t−2cos 2t`, `z=−sin 3t` — simplest non-trivial knot, gradient `Line3DCollection` |
+| 79 | Seashell Surface | Exponential helicospiral `R=eᵇᵛ`, tube radius proportional to `R`, `plot_surface` with height colour gradient |
+| 80 | Hyperboloid of Revolution | `x=a·cosh t·cos u`, `y=a·cosh t·sin u`, `z=c·sinh t`; `plot_surface` + 16 white ruling lines per family |
+| 81 | Parametric Vase | Surface of revolution `x=r(z)cos u`, four profile functions: sinusoidal amphora / Gaussian shoulders / rippled / asymmetric bulge |
+| 82 | Crystal Lattice | SC / BCC / FCC / Diamond Cubic: motif-tiled supercell, `cKDTree.query_pairs` bond lines, height-coloured `scatter` |
+| 83 | Geodesic Dome | Icosphere subdivision → upper hemisphere only, `Poly3DCollection` strut panels, optional base ring |
 
 ---
 
