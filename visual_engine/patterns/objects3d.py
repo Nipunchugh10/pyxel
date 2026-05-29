@@ -47,7 +47,6 @@ class DNAHelixRenderer(BasePattern):
                n_turns=4, n_points=600, view_elev=20, view_azim=30,
                show_rungs=True, **kwargs):
         from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
-        import matplotlib.colors as mcolors
 
         _RES_SCALE = {"Low": 0.6, "Medium": 1.0, "High": 1.4}
         scale = _RES_SCALE.get(resolution, 1.0)
@@ -69,8 +68,12 @@ class DNAHelixRenderer(BasePattern):
 
         # Two backbone strands
         r = 1.0
-        x1 =  r * np.cos(t);  y1 =  r * np.sin(t);  z1 = t / (2 * np.pi)
-        x2 =  r * np.cos(t + np.pi); y2 = r * np.sin(t + np.pi); z2 = z1
+        x1 = r * np.cos(t)
+        y1 = r * np.sin(t)
+        z1 = t / (2 * np.pi)
+        x2 = r * np.cos(t + np.pi)
+        y2 = r * np.sin(t + np.pi)
+        z2 = z1
 
         fig = plt.figure(figsize=(7, 7), facecolor="#030308")
         ax  = fig.add_subplot(111, projection="3d")
@@ -277,7 +280,8 @@ class TorusKnotRenderer(BasePattern):
 
         t = np.linspace(0, 2 * np.pi, N)
         # Torus knot T(p,q)
-        ct = np.cos(q * t);  st = np.sin(q * t)
+        ct = np.cos(q * t)
+        st = np.sin(q * t)
         X = (R + r * ct) * np.cos(p * t)
         Y = (R + r * ct) * np.sin(p * t)
         Z = r * st
@@ -430,11 +434,15 @@ class RomanescoRenderer(BasePattern):
                 sx = cx + sub_r * np.cos(sub_a)
                 sy = cy + sub_r * np.sin(sub_a)
                 sz = cz + sub_r * 0.5
-                xs.append(sx); ys.append(sy); zs.append(sz)
+                xs.append(sx)
+                ys.append(sy)
+                zs.append(sz)
                 cs.append(level / n_levels)
 
-        xs = np.array(xs); ys = np.array(ys)
-        zs = np.array(zs); cs = np.array(cs)
+        xs = np.array(xs)
+        ys = np.array(ys)
+        zs = np.array(zs)
+        cs = np.array(cs)
 
         fig = plt.figure(figsize=(7, 7), facecolor="#030308")
         ax  = fig.add_subplot(111, projection="3d")
@@ -518,7 +526,9 @@ class IcosphereRenderer(BasePattern):
                     vl.append(m.tolist())
                 return cache[key]
             for a, b, c in fl:
-                ab = mid(a, b); bc = mid(b, c); ca = mid(c, a)
+                ab = mid(a, b)
+                bc = mid(b, c)
+                ca = mid(c, a)
                 nf += [[a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]]
             return nf
 
@@ -1042,7 +1052,9 @@ class GeodesicDomeRenderer(BasePattern):
                     vl.append(m.tolist())
                 return cache[key]
             for a, b, c in fl:
-                ab = mid(a, b); bc = mid(b, c); ca = mid(c, a)
+                ab = mid(a, b)
+                bc = mid(b, c)
+                ca = mid(c, a)
                 nf += [[a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]]
             return nf
 
