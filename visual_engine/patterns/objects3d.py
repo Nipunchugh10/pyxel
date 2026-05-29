@@ -708,9 +708,89 @@ class SeashellRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class HyperboloidRenderer(_StubMixin, BasePattern):
-    name = "Hyperboloid of Revolution"
+class HyperboloidRenderer(BasePattern):
+    """80 — Hyperboloid of Revolution"""
+    name  = "Hyperboloid of Revolution"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               a=1.0, c_scale=1.0, t_range=2.0, show_lines=True, alpha=0.65,
+               view_elev=20, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": (60, 40), "Medium": (100, 60), "High": (160, 80)}
+        n_u, n_t = _RES.get(resolution, (60, 40))
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list("hyp", cols, N=256)
+
+        # One-sheeted hyperboloid: x²/a² + y²/a² − z²/c² = 1
+        # Parametric: x = a·cosh(t)·cos(u), y = a·cosh(t)·sin(u), z = c·sinh(t)
+        u = np.linspace(0, 2 * np.pi, n_u)
+        t = np.linspace(-t_range, t_range, n_t)
+        U, T = np.meshgrid(u, t)
+
+        X = a * np.cosh(T) * np.cos(U)
+        Y = a * np.cosh(T) * np.sin(U)
+        Z = c_scale * np.sinh(T)
+
+        Zn = (Z - Z.min()) / (Z.max() - Z.min() + 1e-9)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.plot_surface(X, Y, Z, facecolors=cmap(Zn), alpha=alpha,
+                        linewidth=0, antialiased=True, shade=True)
+
+        # Ruling lines (straight lines lying on the surface)
+        if show_lines:
+            n_rules = 16
+            theta_k = np.linspace(0, 2 * np.pi, n_rules, endpoint=False)
+            s = np.linspace(-t_range * 1.5, t_range * 1.5, 60)
+            for theta in theta_k:
+                # Family-1 rulings: x=a(cosθ−s sinθ), y=a(sinθ+s cosθ), z=c·s
+                rx = a * (np.cos(theta) - s * np.sin(theta))
+                ry = a * (np.sin(theta) + s * np.cos(theta))
+                rz = c_scale * s
+                ax.plot(rx, ry, rz, color="white", alpha=0.25, linewidth=0.8)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=1.0, min=0.5, max=2.0, step=0.1,
+                          description="a"),
+            w.FloatSlider(value=1.0, min=0.3, max=2.0, step=0.1,
+                          description="c_scale"),
+            w.Checkbox(value=True,
+                       description="show_lines"),
+            w.FloatSlider(value=0.65, min=0.2, max=1.0, step=0.05,
+                          description="alpha"),
+            w.IntSlider(value=45, min=0, max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class ParametricVaseRenderer(_StubMixin, BasePattern):
     name = "Parametric Vase"
