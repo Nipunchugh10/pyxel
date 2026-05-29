@@ -874,9 +874,116 @@ class ParametricVaseRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class CrystalLatticeRenderer(_StubMixin, BasePattern):
-    name = "Crystal Lattice"
+class CrystalLatticeRenderer(BasePattern):
+    """82 — Crystal Lattice"""
+    name  = "Crystal Lattice"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               lattice_type=0, show_bonds=True,
+               view_elev=25, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cmap = LinearSegmentedColormap.from_list("cl", cols, N=256)
+
+        _RES = {"Low": 3, "Medium": 4, "High": 5}
+        n = _RES.get(resolution, 3)
+
+        lt = int(lattice_type) % 4
+        r  = np.arange(n, dtype=float)
+
+        # ── Lattice definitions (motif in fractional coords, Cartesian vectors) ──
+        if lt == 0:    # Simple Cubic
+            motif  = [(0., 0., 0.)]
+            a1, a2, a3 = (1,0,0), (0,1,0), (0,0,1)
+            bond_d, title = 1.05, "Simple Cubic"
+        elif lt == 1:  # BCC
+            motif  = [(0.,0.,0.), (0.5,0.5,0.5)]
+            a1, a2, a3 = (1,0,0), (0,1,0), (0,0,1)
+            bond_d, title = np.sqrt(3)/2 + 0.05, "Body-Centred Cubic"
+        elif lt == 2:  # FCC
+            motif  = [(0.,0.,0.), (0.5,0.5,0.), (0.5,0.,0.5), (0.,0.5,0.5)]
+            a1, a2, a3 = (1,0,0), (0,1,0), (0,0,1)
+            bond_d, title = np.sqrt(2)/2 + 0.05, "Face-Centred Cubic"
+        else:          # Diamond cubic
+            motif  = [(0.,0.,0.), (0.5,0.5,0.), (0.5,0.,0.5), (0.,0.5,0.5),
+                      (0.25,0.25,0.25), (0.75,0.75,0.25),
+                      (0.75,0.25,0.75), (0.25,0.75,0.75)]
+            a1, a2, a3 = (1,0,0), (0,1,0), (0,0,1)
+            bond_d, title = np.sqrt(3)/4 + 0.05, "Diamond Cubic"
+
+        A = np.array([a1, a2, a3], dtype=float)   # rows are lattice vectors
+
+        pts_list = []
+        for i in r:
+            for j in r:
+                for k in r:
+                    origin = i * A[0] + j * A[1] + k * A[2]
+                    for fx, fy, fz in motif:
+                        pos = origin + fx * A[0] + fy * A[1] + fz * A[2]
+                        pts_list.append(pos)
+        atoms = np.array(pts_list)
+        atoms -= atoms.mean(axis=0)              # centre the lattice
+
+        zmin = atoms[:, 2].min()
+        zmax = atoms[:, 2].max()
+        zn   = (atoms[:, 2] - zmin) / (zmax - zmin + 1e-9)
+        colors = cmap(zn)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # ── Bonds ─────────────────────────────────────────────────────
+        if show_bonds:
+            from scipy.spatial import cKDTree
+            tree  = cKDTree(atoms)
+            pairs = tree.query_pairs(bond_d)
+            for i, j in pairs:
+                p1, p2 = atoms[i], atoms[j]
+                ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]],
+                        color="white", alpha=0.25, linewidth=0.8)
+
+        # ── Atoms ─────────────────────────────────────────────────────
+        ax.scatter(atoms[:, 0], atoms[:, 1], atoms[:, 2],
+                   c=colors, s=80, alpha=0.92, depthshade=True, zorder=3)
+
+        ax.set_title(title, color="#cccccc", fontsize=10, pad=4)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=0, min=0, max=3, step=1,
+                        description="lattice_type"),
+            w.Checkbox(value=True,
+                       description="show_bonds"),
+            w.IntSlider(value=25, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=45, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class GeodesicDomeRenderer(_StubMixin, BasePattern):
     name = "Geodesic Dome"
