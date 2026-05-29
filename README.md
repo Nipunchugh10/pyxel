@@ -104,111 +104,111 @@ visual_engine/
 
 ### Geometric & Mathematical (1–20) — 20/20 complete
 
-| # | Pattern | Key Technique |
-|---|---------|---------------|
-| 1 | Mandelbrot Fractal Explorer | Vectorised escape-time iteration on complex grid |
-| 2 | Julia Set Animator | Same escape-time with fixed `c`, variable `z0` plane |
-| 3 | Sierpinski Triangle | Chaos game — random barycentric contraction |
-| 4 | Koch Snowflake | Iterative segment subdivision + rotation |
-| 5 | Penrose Tiling | Penrose P3 rhomb deflation with Robinson triangles |
-| 6 | Voronoi Diagram | `scipy.cKDTree` rasterised nearest-neighbour field |
-| 7 | Fibonacci Spiral | Golden-angle sunflower point placement |
-| 8 | Dragon Curve | Iterative fold sequence + `LineCollection` |
-| 9 | Hilbert Curve | `d2xy` space-filling index mapping |
-| 10 | L-System Tree | Prusinkiewicz turtle-graphics branching grammar |
-| 11 | Apollonius Gasket | BFS + Descartes' Circle Theorem curvature iteration |
-| 12 | Lissajous Figures | Parametric `x=sin(at+δ)`, `y=sin(bt)` |
-| 13 | Rose Curves | Polar `r=cos(p/q·θ)`, GCD-reduced period |
-| 14 | Chaos Attractor (Lorenz) | RK4 integration of σ/ρ/β system, x–z projection |
-| 15 | Wave Interference Pattern | Superposition of n coherent point sources via `imshow` |
-| 16 | Hypocycloid & Epicycloid | Parametric rolling-circle equations, GCD period |
-| 17 | Truchet Tiles | Random binary orientation matrix, `Arc` patches |
-| 18 | Hexagonal Grid Art | Axial-coordinate pointy-top tessellation, 4 colour modes |
-| 19 | Spirograph Generator | Layered hypotrochoids with linearly-spaced pen distances |
-| 20 | Parametric Curve Art | Gallery of 8 named curves with singularity guard |
+| # | Pattern | What It Does |
+|---|---------|--------------|
+| 1 | Mandelbrot Fractal Explorer | Counts how long each point takes to escape to infinity when repeatedly squared — boundary points form the iconic fractal |
+| 2 | Julia Set Animator | Same idea as Mandelbrot but with a fixed seed value, revealing a different fractal shape for every seed |
+| 3 | Sierpinski Triangle | Picks a random corner and moves halfway toward it, over and over — a triangle pattern emerges by itself |
+| 4 | Koch Snowflake | Repeatedly replaces the middle third of every line with a triangle bump, creating a snowflake with infinite detail |
+| 5 | Penrose Tiling | Tiles a plane with two diamond shapes that never repeat their arrangement, no matter how far you extend them |
+| 6 | Voronoi Diagram | Colours every pixel by whichever seed dot is closest to it — like territories on a map |
+| 7 | Fibonacci Spiral | Places dots using nature's golden angle, producing the same spiral pattern as seeds in a sunflower |
+| 8 | Dragon Curve | Simulates folding a strip of paper in half repeatedly, then unfolding it flat |
+| 9 | Hilbert Curve | Draws a path that snakes through every cell in a grid without ever crossing itself |
+| 10 | L-System Tree | Grows a tree by repeatedly replacing each branch with a smaller copy of the whole tree |
+| 11 | Apollonius Gasket | Fills a circle with smaller and smaller tangent circles, packing them tighter and tighter forever |
+| 12 | Lissajous Figures | Draws the path traced when two sine waves at different frequencies push a point in two directions at once |
+| 13 | Rose Curves | Traces the petal shapes made by a point moving on a spinning wheel inside a circle |
+| 14 | Chaos Attractor (Lorenz) | Simulates the butterfly-shaped path of a chaotic weather system that never quite repeats itself |
+| 15 | Wave Interference Pattern | Shows how ripples from multiple sources add and cancel each other, creating bright and dark regions |
+| 16 | Hypocycloid & Epicycloid | Traces the path of a point on a small circle rolling around the inside or outside of a larger one |
+| 17 | Truchet Tiles | Fills a grid with randomly flipped curved tiles that join up into flowing river-like patterns |
+| 18 | Hexagonal Grid Art | Colours a honeycomb grid using four different mathematical rules — distance, angle, checkerboard, random |
+| 19 | Spirograph Generator | Mimics the classic toy — a pen tracing circles rolling inside other circles, layered on top of each other |
+| 20 | Parametric Curve Art | Draws eight famous mathematical curves, each defined by a pair of simple equations |
 
 ### Nature-Inspired (21–40) — 20/20 complete
 
-| # | Pattern | Key Technique |
-|---|---------|---------------|
-| 21 | Cherry Blossom Particle Scene | Recursive tree `LineCollection` + wind-drift petal scatter |
-| 22 | Procedural Tree Generator | Configurable recursive branching, palette gradient by depth |
-| 23 | Reaction-Diffusion (Turing Patterns) | Gray-Scott model, 5-point Laplacian via `np.roll` |
-| 24 | Flocking Birds (Boids Lite) | Fully vectorised sep/align/cohesion via (N,N,2) diff tensor |
-| 25 | Lightning Bolt Generator | Recursive midpoint displacement + probabilistic branching |
-| 26 | Snowflake Crystal Growth | 6-fold symmetric recursive arms, glow `LineCollection` |
-| 27 | Leaf Venation Simulation | Space colonisation: elliptical attractor field, kill-radius |
-| 28 | Fire Particle System | Beta-distributed age → height + temperature colour mapping |
-| 29 | Galaxy Spiral Arms | Logarithmic spiral `r=r₀·exp(b·θ)`, warm→cool star gradient |
-| 30 | Aurora Borealis | Raster curtain layers: sinusoidal edge + exponential fade |
-| 31 | Underwater Caustics | Sum of N random-direction cosine waves, power-law sharpening |
-| 32 | Sand Dune Erosion | Cellular automaton: saltation via `np.roll` + avalanche rule |
-| 33 | Coral Reef Growth | Multi-colony recursive branching, 6 species palettes |
-| 34 | Mushroom Spore Map | `cKDTree` 2-NN Voronoi + ring texture + noise blend |
-| 35 | Terrain Height Map | Multi-octave fBm (layered sine octaves) + hypsometric colour |
-| 36 | Waterfall Flow | Gravity-accelerated stream paths + sinusoidal sway + spray scatter |
-| 37 | Tornado Vortex | Cylindrical particles + height-proportional twist + funnel taper |
-| 38 | Cloud Formation | Persistence noise → threshold + γ lift → sky gradient composite |
-| 39 | River Delta Branching | Recursive binary bifurcation, fan-spread, muddy→teal colour |
-| 40 | Moth Wing Pattern | Elliptical wing masks + concentric bands + bilateral eyespots |
+| # | Pattern | What It Does |
+|---|---------|--------------|
+| 21 | Cherry Blossom Particle Scene | Draws a branching tree then scatters pink petals drifting sideways in the wind |
+| 22 | Procedural Tree Generator | Builds a tree by recursively splitting every branch into smaller branches at random angles |
+| 23 | Reaction-Diffusion (Turing Patterns) | Simulates two chemicals spreading and reacting to spontaneously form animal-skin-like spots and stripes |
+| 24 | Flocking Birds (Boids Lite) | Simulates a flock where each bird follows three rules — avoid neighbours, match direction, stay close |
+| 25 | Lightning Bolt Generator | Zigzags a bolt downward, randomly splitting into branches at each step |
+| 26 | Snowflake Crystal Growth | Grows six identical arms outward from a centre, branching symmetrically to form a snowflake |
+| 27 | Leaf Venation Simulation | Grows veins toward scattered nutrient points, removing each point once a vein reaches it |
+| 28 | Fire Particle System | Launches particles upward from a glowing base, fading from deep red through orange to white as they age |
+| 29 | Galaxy Spiral Arms | Spreads thousands of stars along logarithmic spiral arms with a bright compact glow at the centre |
+| 30 | Aurora Borealis | Layers glowing curtains of colour that fade downward, with a starfield behind them |
+| 31 | Underwater Caustics | Overlaps multiple sets of ripples to create the shifting bright patches seen on a sunlit pool floor |
+| 32 | Sand Dune Erosion | Blows sand grains one cell downwind at a time, collapsing any slope that gets too steep |
+| 33 | Coral Reef Growth | Sprouts branching coral colonies upward from a sandy seafloor in vivid species colours |
+| 34 | Mushroom Spore Map | Colours a region map by which mushroom colony each point belongs to, with ringed territory textures |
+| 35 | Terrain Height Map | Generates realistic landscape elevations by stacking noise waves at different scales |
+| 36 | Waterfall Flow | Traces streams down a rocky cliff face, accelerating under gravity and scattering spray at the bottom |
+| 37 | Tornado Vortex | Spins a cloud of particles in a funnel shape that widens at the top and narrows at the ground |
+| 38 | Cloud Formation | Stacks multiple layers of smooth noise to build fluffy cloud shapes against a sky gradient |
+| 39 | River Delta Branching | Splits a river into a spreading fan of smaller channels as it reaches the sea |
+| 40 | Moth Wing Pattern | Draws paired wings with concentric colour bands and circular eyespots, like a real moth |
 
 ### Abstract & Artistic (41–60) — 20/20 complete
 
-| # | Pattern | Key Technique |
-|---|---------|---------------|
-| 41 | Generative Mondrian | Recursive BSP partitioning + Mondrian palette (5:3 white-to-primary weighting) |
-| 42 | Perlin Noise Painting | fBm via `scipy.ndimage.zoom` cubic upsampling of random value-noise grids |
-| 43 | Mandala Generator | N-fold rotational symmetry, cosine-squared petal profile, concentric rings |
-| 44 | Stained Glass Voronoi | `cKDTree` 2-NN rasterisation + distance shading + d2−d1 border threshold |
-| 45 | Op-Art Optical Illusion | 3 styles: wavy concentric rings, Vasarely grid, hypnotic wavy squares |
-| 46 | Watercolor Wash Effect | Random ellipse masks + Gaussian blur + power-law edge curve + alpha composite |
-| 47 | Glitch Art Generator | Row-shift displacement + RGB chromatic aberration + corrupted data blocks |
-| 48 | Isometric City Builder | Isometric projection + painter's algorithm on (c+r) sum + 3-face buildings |
-| 49 | Circuit Board Art | Snap-grid L-shaped copper traces + annular-ring vias + IC chip bodies |
-| 50 | Tie-Dye Diffusion | Cosine ripple superposition Σwᵢcos(2πf₀dᵢ+τθᵢ) with spiral twist parameter |
-| 51 | Geometric Collage | 5 shape types, explicit rotation matrices, Porter-Duff alpha compositing |
-| 52 | Pixel Sorting Art | Contiguous-span detection + `np.argsort` pixel reordering above threshold |
-| 53 | ASCII Art Renderer | 10-level density ramp, two-octave value noise, monospace text grid |
-| 54 | Kandinsky Color Study | 7 element types, 3 compositional styles (Composition VIII / YRB / Improvisation) |
-| 55 | Zentangle Automaton | g×g grid, 6 tangle rules (lines / circles / dots / cross-hatch / diagonals / Archimedean spiral) |
-| 56 | Neon Sign Generator | Multi-pass glow w_k=w_base·(1+3.5k/n_g) + alpha falloff + white core, 6 sign shapes |
-| 57 | Mosaic Tile Art | Raster tessera renderer — ts-pixel tiles with grout, 3 colour modes, brightness jitter |
-| 58 | Impressionist Dots | 4-octave fBm colour field, vectorised `cmap(vals)` scatter, Gaussian position jitter |
-| 59 | Cubist Portrait Filter | Delaunay triangulation on n points + 36 border guards, centroid-sampled noise field |
-| 60 | Abstract Expressionism Drip | Velocity-damped random walk v×=0.97 − gravity, terminal splatter Circle patches |
+| # | Pattern | What It Does |
+|---|---------|--------------|
+| 41 | Generative Mondrian | Recursively splits a canvas into rectangles and fills them with white or bold primary colours |
+| 42 | Perlin Noise Painting | Blends multiple layers of smooth random noise into a flowing abstract colour painting |
+| 43 | Mandala Generator | Mirrors a repeated petal shape around a centre point to build up a symmetrical mandala |
+| 44 | Stained Glass Voronoi | Divides the canvas into irregular cells, each filled with a bold colour and outlined with dark borders |
+| 45 | Op-Art Optical Illusion | Draws precisely spaced geometric patterns that trick the eye into seeing movement or depth |
+| 46 | Watercolor Wash Effect | Overlaps soft blurred colour shapes to imitate the look of watercolour brushwork on paper |
+| 47 | Glitch Art Generator | Mimics digital corruption — shifted rows, colour channel fringing, and random noise blocks |
+| 48 | Isometric City Builder | Draws a miniature city viewed at a 45° angle with three shaded faces giving each building depth |
+| 49 | Circuit Board Art | Generates a printed circuit board layout with copper traces, solder pads, and chip bodies |
+| 50 | Tie-Dye Diffusion | Overlaps ripple rings from random points to simulate the look of folded and dip-dyed fabric |
+| 51 | Geometric Collage | Randomly places and overlaps circles, rectangles, triangles, hexagons, and stars |
+| 52 | Pixel Sorting Art | Reorders pixels within rows or columns by brightness, creating a glitchy sweep effect |
+| 53 | ASCII Art Renderer | Maps a noise field to text characters — bright areas get dense symbols, dark areas get spaces |
+| 54 | Kandinsky Color Study | Recreates the bold abstract style of Kandinsky using circles, arcs, lines, and triangles |
+| 55 | Zentangle Automaton | Fills every cell of a grid with a randomly chosen hand-drawn tile pattern |
+| 56 | Neon Sign Generator | Draws shapes with layered glowing halos to simulate lit neon tubes in six different sign styles |
+| 57 | Mosaic Tile Art | Covers the canvas in small coloured squares with thin grout lines between them |
+| 58 | Impressionist Dots | Scatters thousands of coloured dots to mimic the Pointillist painting technique |
+| 59 | Cubist Portrait Filter | Breaks the canvas into triangles via Delaunay triangulation and fills each with its centre colour |
+| 60 | Abstract Expressionism Drip | Simulates paint dripping down a canvas, slowing from gravity and splattering at the end |
 
 ### 2D Game-Style (61–70) — 10/10 complete ✅
 
-| # | Pattern | Key Technique |
-|---|---------|---------------|
-| 61 | Maze Generator & Solver | Iterative DFS backtracker + BFS solver; wall arrays + `LineCollection` |
-| 62 | Cellular Automaton Life | Conway's GoL via `scipy.ndimage.convolve`; log-age colourmap |
-| 63 | Dungeon Room Placer | Random room placement with overlap test; L-shaped corridor carving |
-| 64 | Retro Starfield | Perspective projection x/z, y/z; power-law depth distribution; motion streaks |
-| 65 | Breakout Brick Map | 4 colouring styles (row/checker/radial/noise); bevel highlight via `FancyBboxPatch` |
-| 66 | Pac-Man Ghost Pathfinding | BFS predecessor map on DFS-carved perfect maze; ghost/Pac-Man sprite rendering |
-| 67 | Platformer Terrain Gen | 1D fBm via cubic-spline octave stack; grassy/cave/snow themes; platforms + coins + player |
-| 68 | Bullet Hell Pattern | 5 danmaku patterns (burst/spiral/fan/cross/scatter); glow scatter + guide rings |
-| 69 | Card Suit Patterns | Parametric heart `16sin³t`; rhombus/triple-circle/inverted-heart suits; 3 layouts |
-| 70 | Pixel Flag Generator | 6 grammar designs (stripes/cross/diagonal/triband+star/noise); 5× pixel upscale |
+| # | Pattern | What It Does |
+|---|---------|--------------|
+| 61 | Maze Generator & Solver | Carves a perfect maze by randomly knocking down walls, then finds the shortest path through it |
+| 62 | Cellular Automaton Life | Runs Conway's Game of Life — cells live, die, or are born based on how many neighbours they have |
+| 63 | Dungeon Room Placer | Drops rooms at random positions, rejects any that overlap, then connects them with corridors |
+| 64 | Retro Starfield | Simulates flying through space by moving stars toward you and making nearer ones bigger and brighter |
+| 65 | Breakout Brick Map | Generates a coloured brick layout styled after the classic Breakout arcade game |
+| 66 | Pac-Man Ghost Pathfinding | Builds a maze and shows the shortest route each ghost would take to reach Pac-Man |
+| 67 | Platformer Terrain Gen | Generates a side-scrolling level with varied terrain, floating platforms, coins, and a player character |
+| 68 | Bullet Hell Pattern | Renders five different projectile spray patterns from a shoot-em-up bullet-hell game |
+| 69 | Card Suit Patterns | Draws the four playing card suits — heart, diamond, club, spade — using precise mathematical curves |
+| 70 | Pixel Flag Generator | Creates pixel-art flags using six different stripe and symbol layout rules |
 
 ### 3D Objects & Sculptures (71–90) — 13/20 in progress
 
-| # | Pattern | Key Technique |
-|---|---------|---------------|
-| 71 | Rotating DNA Helix | Two helical strands as 3D scatter + gradient colouring via `LinearSegmentedColormap`, base-pair rungs as `ax.plot` segments |
-| 72 | Klein Bottle Surface | Figure-8 immersion parametric surface `X=(2+cos(U/2)sinV−sin(U/2)sin2V)cosU`, `ax.plot_surface` with height-based palette |
-| 73 | Mobius Strip | Parametric `x=(1+v·cos(u/2))cos u`, twist multiplier for N half-turns, `ax.plot_surface` with azimuthal colouring |
-| 74 | Torus Knot | `T(p,q)` curve `x=(R+r·cos qt)cos pt`, gradient `Line3DCollection` segments |
-| 75 | Gyroid Surface | Implicit `cos x·sin y+cos y·sin z+cos z·sin x=0` scatter near zero level-set from 3D meshgrid |
-| 76 | Romanesco Broccoli | Golden-angle phyllotaxis spiral `φ_g≈2.400 rad`, conical bud placement with recursive sub-bud clusters, `ax.scatter` |
-| 77 | Icosphere Subdivisions | Iterative midpoint subdivision of icosahedron (20·4ⁿ faces), vertices normalised to unit sphere, `Poly3DCollection` |
-| 78 | Trefoil Knot | Parametric `x=sin t+2sin 2t`, `y=cos t−2cos 2t`, `z=−sin 3t` — simplest non-trivial knot, gradient `Line3DCollection` |
-| 79 | Seashell Surface | Exponential helicospiral `R=eᵇᵛ`, tube radius proportional to `R`, `plot_surface` with height colour gradient |
-| 80 | Hyperboloid of Revolution | `x=a·cosh t·cos u`, `y=a·cosh t·sin u`, `z=c·sinh t`; `plot_surface` + 16 white ruling lines per family |
-| 81 | Parametric Vase | Surface of revolution `x=r(z)cos u`, four profile functions: sinusoidal amphora / Gaussian shoulders / rippled / asymmetric bulge |
-| 82 | Crystal Lattice | SC / BCC / FCC / Diamond Cubic: motif-tiled supercell, `cKDTree.query_pairs` bond lines, height-coloured `scatter` |
-| 83 | Geodesic Dome | Icosphere subdivision → upper hemisphere only, `Poly3DCollection` strut panels, optional base ring |
+| # | Pattern | What It Does |
+|---|---------|--------------|
+| 71 | Rotating DNA Helix | Draws two intertwined helical strands with coloured rungs connecting them, like a real DNA molecule |
+| 72 | Klein Bottle Surface | Renders a surface with no inside or outside — it passes through itself because it can't exist in 3D without self-intersection |
+| 73 | Mobius Strip | Renders a twisted loop that has only one side and one edge |
+| 74 | Torus Knot | Draws a knotted curve that winds around the surface of a donut shape |
+| 75 | Gyroid Surface | Renders a sponge-like curved surface found in nature inside butterfly wings and sea coral skeletons |
+| 76 | Romanesco Broccoli | Places spiralling bud clusters using the same golden angle as a real Romanesco — a fractal vegetable |
+| 77 | Icosphere Subdivisions | Starts from a 20-sided solid and repeatedly splits its triangular faces to approximate a smooth sphere |
+| 78 | Trefoil Knot | Renders the simplest possible knot in 3D — it looks like a three-leaf clover looped through itself |
+| 79 | Seashell Surface | Wraps a tube around an exponentially growing spiral, reproducing the shape of a real mollusc shell |
+| 80 | Hyperboloid of Revolution | Renders the hourglass / cooling-tower shape made by rotating a hyperbola around its axis |
+| 81 | Parametric Vase | Spins a profile curve around a vertical axis to create four different vase shapes |
+| 82 | Crystal Lattice | Shows four atom arrangements found in real crystals — Simple Cubic, BCC, FCC, and Diamond — with bond lines |
+| 83 | Geodesic Dome | Takes the top half of a subdivided sphere to build a dome made entirely of triangular panels |
 
 ---
 
