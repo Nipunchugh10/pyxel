@@ -792,9 +792,87 @@ class HyperboloidRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class ParametricVaseRenderer(_StubMixin, BasePattern):
-    name = "Parametric Vase"
+class ParametricVaseRenderer(BasePattern):
+    """81 — Parametric Vase"""
+    name  = "Parametric Vase"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Lava Flow", speed=1.0,
+               style=0, alpha=0.9, view_elev=20, view_azim=30, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": (60, 80), "Medium": (100, 140), "High": (160, 220)}
+        n_u, n_z = _RES.get(resolution, (60, 80))
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Lava Flow"])
+        cmap = LinearSegmentedColormap.from_list("vase", cols, N=256)
+
+        z = np.linspace(0, 1, n_z)
+        style_int = int(style) % 4
+
+        if style_int == 0:     # Classic amphora
+            r = 0.15 + 0.55 * np.sin(np.pi * z) + 0.12 * np.sin(2 * np.pi * z)
+            taper = np.where(z < 0.08, z / 0.08, np.ones_like(z))
+            r = r * taper
+        elif style_int == 1:   # Chinese vase: high Gaussian shoulders
+            r = 0.4 * np.exp(-8 * (z - 0.65) ** 2) + 0.1 + 0.25 * z * (1 - z)
+        elif style_int == 2:   # Modernist with ripples
+            r = 0.3 + 0.1 * np.sin(6 * np.pi * z) + 0.2 * np.sin(np.pi * z)
+            r = np.clip(r, 0.05, 1.0)
+        else:                  # Bulging round vase
+            r = 0.15 + 0.55 * np.sin(np.pi * z ** 0.7)
+            taper2 = np.where(z < 0.05, z / 0.05, np.ones_like(z))
+            r = r * taper2
+
+        u = np.linspace(0, 2 * np.pi, n_u)
+        Z2d, U2d = np.meshgrid(z, u)
+        R2d = np.interp(Z2d, z, r)
+
+        X = R2d * np.cos(U2d)
+        Y = R2d * np.sin(U2d)
+        Zn = (Z2d - Z2d.min()) / (Z2d.max() - Z2d.min() + 1e-9)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.plot_surface(X, Y, Z2d, facecolors=cmap(Zn), alpha=alpha,
+                        linewidth=0, antialiased=True, shade=True)
+
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=0, min=0, max=3, step=1,
+                        description="style"),
+            w.FloatSlider(value=0.9, min=0.3, max=1.0, step=0.05,
+                          description="alpha"),
+            w.IntSlider(value=20, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=30, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class CrystalLatticeRenderer(_StubMixin, BasePattern):
     name = "Crystal Lattice"
