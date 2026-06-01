@@ -1206,9 +1206,108 @@ class CalabiYauRenderer(BasePattern):
                           description="point_size"),
         ]
 
-class SoapBubbleRenderer(_StubMixin, BasePattern):
-    name = "Soap Bubble Cluster"
+class SoapBubbleRenderer(BasePattern):
+    """85 — Soap Bubble Cluster"""
+    name  = "Soap Bubble Cluster"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
+               n_bubbles=12, seed=42, alpha=0.35,
+               view_elev=20, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+        import colorsys
+
+        _RES = {"Low": (18, 14), "Medium": (30, 24), "High": (50, 40)}
+        n_u, n_v = _RES.get(resolution, (18, 14))
+
+        rng = np.random.default_rng(int(seed))
+        n_b = max(3, min(int(n_bubbles), 20))
+
+        # Greedy sphere packing — accept new centre only if it doesn't overlap
+        # existing bubbles by more than 8 % of the smaller radius.
+        radii   = rng.uniform(0.18, 0.55, n_b)
+        centers = np.zeros((n_b, 3))
+        placed  = 0
+        for _attempt in range(8000):
+            if placed >= n_b:
+                break
+            cand  = rng.uniform(-1.6, 1.6, 3)
+            r_new = radii[placed]
+            ok = all(
+                np.linalg.norm(cand - centers[q]) >= (r_new + radii[q]) * 0.92
+                for q in range(placed)
+            )
+            if ok:
+                centers[placed] = cand
+                placed += 1
+        for q in range(placed, n_b):          # fill any unplaced bubbles
+            centers[q] = rng.uniform(-1.6, 1.6, 3)
+
+        # Pre-compute unit sphere mesh once
+        u = np.linspace(0, 2.0 * np.pi, n_u)
+        v = np.linspace(0, np.pi, n_v)
+        U, V   = np.meshgrid(u, v)
+        SX = np.sin(V) * np.cos(U)
+        SY = np.sin(V) * np.sin(U)
+        SZ = np.cos(V)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # Soap-film iridescent colours (thin-film hue cycling in HSV)
+        hue_base = rng.uniform(0.0, 1.0)
+        for i, (c, r) in enumerate(zip(centers, radii)):
+            hue = (hue_base + i * 0.13) % 1.0
+            sat = rng.uniform(0.25, 0.55)
+            val = rng.uniform(0.88, 1.00)
+            rgb = colorsys.hsv_to_rgb(hue, sat, val)
+
+            X = c[0] + r * SX
+            Y = c[1] + r * SY
+            Z = c[2] + r * SZ
+
+            ax.plot_surface(X, Y, Z, color=rgb, alpha=float(alpha),
+                            linewidth=0, antialiased=True, shade=True)
+
+            # Specular highlight: small white scatter inside the bubble surface
+            hl_r = r * 0.55
+            hlx  = c[0] + hl_r + rng.uniform(-0.05, 0.05) * r
+            hly  = c[1] + hl_r + rng.uniform(-0.05, 0.05) * r
+            hlz  = c[2] + hl_r
+            ax.scatter([hlx], [hly], [hlz], c="white",
+                       s=max(4.0, 55.0 * r ** 2),
+                       alpha=0.75, zorder=5, depthshade=False)
+
+        lim = 2.3
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_zlim(-lim, lim)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=12, min=3, max=20, step=1,
+                        description="n_bubbles"),
+            w.FloatSlider(value=0.35, min=0.10, max=0.70, step=0.05,
+                          description="alpha"),
+            w.IntSlider(value=42, min=0, max=100, step=1,
+                        description="seed"),
+            w.IntSlider(value=20, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=45, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class NeuralMeshRenderer(_StubMixin, BasePattern):
     name = "Neural Mesh Sculpture"
