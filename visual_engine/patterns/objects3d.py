@@ -1124,9 +1124,87 @@ class GeodesicDomeRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class CalabiYauRenderer(_StubMixin, BasePattern):
-    name = "Calabi-Yau Manifold Slice"
+class CalabiYauRenderer(BasePattern):
+    """84 — Calabi-Yau Manifold Slice"""
+    name  = "Calabi-Yau Manifold Slice"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n=5, point_size=0.4, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 80, "Medium": 140, "High": 220}
+        M = _RES.get(resolution, 80)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list("cy", cols, N=256)
+
+        n_val = max(2, int(n))
+
+        # Parameterise z1^n + z2^n = 1 in C^2.
+        # rho = |z1|, alpha = arg(z1^n)/n in [0, 2*pi/n].
+        # Branch (k,j): z1 = rho*exp(i*(alpha + 2*pi*k/n)),
+        #   z2 = |1-z1^n|^(1/n) * exp(i*(arg(1-z1^n)/n + 2*pi*j/n)).
+        # Satisfies z1^n + z2^n = 1 for all k, j.
+        rho   = np.linspace(0.01, 0.99, M)
+        alpha = np.linspace(0.0, 2.0 * np.pi / n_val, M)
+        RHO, ALPHA = np.meshgrid(rho, alpha)
+
+        z1_n     = RHO ** n_val * np.exp(1j * n_val * ALPHA)
+        z2_n     = 1.0 - z1_n
+        z2_abs   = np.abs(z2_n) ** (1.0 / n_val)
+        z2_arg_b = np.angle(z2_n) / n_val
+
+        all_X, all_Y, all_C = [], [], []
+
+        for k in range(n_val):
+            theta1 = ALPHA + 2.0 * np.pi * k / n_val
+            re_z1  = RHO * np.cos(theta1)
+            im_z1  = RHO * np.sin(theta1)
+            for j in range(n_val):
+                theta2 = z2_arg_b + 2.0 * np.pi * j / n_val
+                re_z2  = z2_abs * np.cos(theta2)
+                im_z2  = z2_abs * np.sin(theta2)
+                all_X.append(re_z1.ravel())
+                all_Y.append(re_z2.ravel())
+                all_C.append((im_z1 + im_z2).ravel())
+
+        X  = np.concatenate(all_X)
+        Y  = np.concatenate(all_Y)
+        C  = np.concatenate(all_C)
+        Cn = (C - C.min()) / (C.max() - C.min() + 1e-9)
+
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#030308")
+        ax.set_facecolor("#030308")
+        ax.scatter(X, Y, c=cmap(Cn), s=float(point_size),
+                   alpha=0.65, linewidths=0, rasterized=True)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        ax.set_title(f"Calabi-Yau Manifold Slice  (n = {n_val})",
+                     color="#aaaaaa", fontsize=11, pad=10)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=5, min=2, max=8, step=1,
+                        description="n"),
+            w.FloatSlider(value=0.4, min=0.1, max=2.0, step=0.1,
+                          description="point_size"),
+        ]
 
 class SoapBubbleRenderer(_StubMixin, BasePattern):
     name = "Soap Bubble Cluster"
