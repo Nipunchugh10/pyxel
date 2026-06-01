@@ -1309,9 +1309,135 @@ class SoapBubbleRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class NeuralMeshRenderer(_StubMixin, BasePattern):
-    name = "Neural Mesh Sculpture"
+class NeuralMeshRenderer(BasePattern):
+    """86 — Neural Mesh Sculpture"""
+    name  = "Neural Mesh Sculpture"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_layers=5, conn_threshold=0.65, seed=42,
+               view_elev=25, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+        from matplotlib.colors import LinearSegmentedColormap
+        from scipy.spatial import cKDTree
+
+        _RES = {"Low": 1.0, "Medium": 1.5, "High": 2.0}
+        scale = _RES.get(resolution, 1.0)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list("nm", cols, N=256)
+
+        rng = np.random.default_rng(int(seed))
+        n_l = max(3, min(int(n_layers), 8))
+
+        # Build layered neuron positions in 3D.
+        # Each layer occupies a fixed x-plane; neurons are spread randomly in y-z.
+        pts_list, layer_ids = [], []
+        pts_per_layer = [int(rng.integers(5, 14) * scale) for _ in range(n_l)]
+
+        for li, n_pts in enumerate(pts_per_layer):
+            x_pos = (li / (n_l - 1)) * 2.0 - 1.0
+            for _ in range(n_pts):
+                y = rng.uniform(-1.0, 1.0)
+                z = rng.uniform(-1.0, 1.0)
+                pts_list.append([x_pos, y, z])
+                layer_ids.append(li)
+
+        pts    = np.array(pts_list)
+        layers = np.array(layer_ids)
+
+        # Build inter-layer edges: connect each source neuron to target neurons
+        # within conn_threshold Euclidean distance (adjacent layers only).
+        segs, seg_frac = [], []
+        thresh = float(conn_threshold)
+
+        for li in range(n_l - 1):
+            ma = layers == li
+            mb = layers == (li + 1)
+            pa, pb = pts[ma], pts[mb]
+            if len(pa) == 0 or len(pb) == 0:
+                continue
+            tree = cKDTree(pb)
+            for row_a in pa:
+                k_near = min(4, len(pb))
+                dists, idxs = tree.query(row_a, k=k_near)
+                for d, idx in zip(np.atleast_1d(dists), np.atleast_1d(idxs)):
+                    if d <= thresh:
+                        segs.append([row_a, pb[idx]])
+                        seg_frac.append(li / (n_l - 1))
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # Draw synaptic connections as a single Line3DCollection
+        if segs:
+            seg_arr  = np.array(segs)
+            seg_cols = cmap(np.array(seg_frac))
+            seg_cols[:, 3] = 0.30          # dim edges for depth effect
+            lc = Line3DCollection(seg_arr, colors=seg_cols,
+                                  linewidth=0.8, zorder=1)
+            ax.add_collection(lc)
+
+        # Draw neuron bodies — input/output layers rendered larger
+        node_frac   = layers / (n_l - 1)
+        node_cols   = cmap(node_frac)
+        edge_layers = (layers == 0) | (layers == (n_l - 1))
+        sizes       = np.where(edge_layers, 80, 35)
+        ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2],
+                   c=node_cols, s=sizes, alpha=0.92,
+                   depthshade=True, zorder=3,
+                   edgecolors="white", linewidths=0.4)
+
+        # Faint layer-ring dividers
+        theta = np.linspace(0, 2.0 * np.pi, 40)
+        for li in range(n_l):
+            xp = (li / (n_l - 1)) * 2.0 - 1.0
+            ax.plot(np.full(40, xp),
+                    1.05 * np.cos(theta),
+                    1.05 * np.sin(theta),
+                    color="white", alpha=0.06, linewidth=0.6, zorder=0)
+
+        lim = 1.3
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_zlim(-lim, lim)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=5, min=3, max=8, step=1,
+                        description="n_layers"),
+            w.FloatSlider(value=0.65, min=0.30, max=1.20, step=0.05,
+                          description="conn_threshold"),
+            w.IntSlider(value=42, min=0, max=100, step=1,
+                        description="seed"),
+            w.IntSlider(value=25, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=45, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class TwistedPrismRenderer(_StubMixin, BasePattern):
     name = "Twisted Prism Tower"
