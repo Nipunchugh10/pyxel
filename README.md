@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **83 / 100** — in progress |
+| Pattern implementations | **86 / 100** — in progress |
 
 **Progress by group:**
 
@@ -33,7 +33,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 10 | 10 ✅ |
-| 3D Objects & Sculptures (71–90) | 13 | 20 |
+| 3D Objects & Sculptures (71–90) | 16 | 20 |
 | Scientific & Simulation (91–100) | 0 | 10 |
 
 ---
@@ -192,7 +192,7 @@ visual_engine/
 | 69 | Card Suit Patterns | Draws the four playing card suits — heart, diamond, club, spade — using precise mathematical curves |
 | 70 | Pixel Flag Generator | Creates pixel-art flags using six different stripe and symbol layout rules |
 
-### 3D Objects & Sculptures (71–90) — 13/20 in progress
+### 3D Objects & Sculptures (71–90) — 16/20 in progress
 
 | # | Pattern | What It Does |
 |---|---------|--------------|
@@ -209,6 +209,9 @@ visual_engine/
 | 81 | Parametric Vase | Spins a profile curve around a vertical axis to create four different vase shapes |
 | 82 | Crystal Lattice | Shows four atom arrangements found in real crystals — Simple Cubic, BCC, FCC, and Diamond — with bond lines |
 | 83 | Geodesic Dome | Takes the top half of a subdivided sphere to build a dome made entirely of triangular panels |
+| 84 | Calabi-Yau Manifold Slice | Projects the algebraic surface z₁ⁿ + z₂ⁿ = 1 from complex space onto a 2D plane, revealing the n²-patch lattice symmetry studied in string theory |
+| 85 | Soap Bubble Cluster | Packs spheres of varying radii using greedy collision detection, then renders each with iridescent thin-film colouring and a specular highlight |
+| 86 | Neural Mesh Sculpture | Places neuron nodes in layered 3D planes and connects adjacent layers with proximity-based synaptic edges, forming a glowing network sculpture |
 
 ---
 
