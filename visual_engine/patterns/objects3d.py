@@ -1665,9 +1665,115 @@ class FractalMountainRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class VolumetricFogRenderer(_StubMixin, BasePattern):
-    name = "Volumetric Fog Cube"
+class VolumetricFogRenderer(BasePattern):
+    """89 — Volumetric Fog Cube"""
+    name  = "Volumetric Fog Cube"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               n_octaves=4, density_thresh=0.48, seed=42,
+               view_elev=20, view_azim=45, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+        from scipy.ndimage import zoom
+
+        _RES = {"Low": 22, "Medium": 34, "High": 50}
+        N = _RES.get(resolution, 22)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cmap = LinearSegmentedColormap.from_list("vf", cols, N=256)
+
+        rng  = np.random.default_rng(int(seed))
+        n_oc = max(1, int(n_octaves))
+
+        # Build 3D fBm density field by stacking zoomed noise octaves
+        field = np.zeros((N, N, N))
+        amp   = 1.0
+        total = 0.0
+        for k in range(n_oc):
+            coarse = max(2, 2 ** (n_oc - k))      # 16, 8, 4, 2 for n_oc=4
+            raw    = rng.uniform(0.0, 1.0, (coarse, coarse, coarse)).astype(np.float32)
+            sc     = N / coarse
+            zoomed = zoom(raw, sc, order=1)[:N, :N, :N]
+            field += amp * zoomed
+            total += amp
+            amp   *= 0.5
+        field /= total
+
+        # Threshold and extract voxel positions
+        thresh = float(density_thresh)
+        mask   = field > thresh
+        if not np.any(mask):
+            mask = field > (field.max() * 0.5)
+
+        iz, iy, ix = np.where(mask)
+        densities  = field[iz, iy, ix]
+
+        # Normalise to [-1, 1]^3
+        coords = np.column_stack([
+            ix / (N - 1) * 2.0 - 1.0,
+            iy / (N - 1) * 2.0 - 1.0,
+            iz / (N - 1) * 2.0 - 1.0,
+        ])
+
+        # Colour: blend height (z) with excess density
+        zn = (coords[:, 2] + 1.0) / 2.0
+        cn = np.clip(0.7 * zn + 0.3 * (densities - thresh) / (1.0 - thresh + 1e-9),
+                     0.0, 1.0)
+
+        # Point sizes proportional to excess density
+        sizes = (densities - thresh) / (1.0 - thresh + 1e-9) * 18.0 + 1.0
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # Back-to-front sort for additive blending (nearest rendered last)
+        order = np.argsort(coords[:, 2])
+        ax.scatter(coords[order, 0], coords[order, 1], coords[order, 2],
+                   c=cmap(cn[order]), s=sizes[order],
+                   alpha=0.28, linewidths=0, depthshade=False,
+                   rasterized=True)
+
+        lim = 1.3
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_zlim(-lim, lim)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=4, min=1, max=6, step=1,
+                        description="n_octaves"),
+            w.FloatSlider(value=0.48, min=0.20, max=0.80, step=0.02,
+                          description="density_thresh"),
+            w.IntSlider(value=42, min=0, max=100, step=1,
+                        description="seed"),
+            w.IntSlider(value=20, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=45, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class StrangeAttractor3DRenderer(_StubMixin, BasePattern):
     name = "Strange Attractor 3D"
