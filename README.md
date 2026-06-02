@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **86 / 100** — in progress |
+| Pattern implementations | **90 / 100** — in progress |
 
 **Progress by group:**
 
@@ -33,7 +33,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Nature-Inspired (21–40) | 20 | 20 ✅ |
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 10 | 10 ✅ |
-| 3D Objects & Sculptures (71–90) | 16 | 20 |
+| 3D Objects & Sculptures (71–90) | 20 | 20 ✅ |
 | Scientific & Simulation (91–100) | 0 | 10 |
 
 ---
@@ -192,7 +192,7 @@ visual_engine/
 | 69 | Card Suit Patterns | Draws the four playing card suits — heart, diamond, club, spade — using precise mathematical curves |
 | 70 | Pixel Flag Generator | Creates pixel-art flags using six different stripe and symbol layout rules |
 
-### 3D Objects & Sculptures (71–90) — 16/20 in progress
+### 3D Objects & Sculptures (71–90) — 20/20 complete ✅
 
 | # | Pattern | What It Does |
 |---|---------|--------------|
@@ -212,6 +212,10 @@ visual_engine/
 | 84 | Calabi-Yau Manifold Slice | Projects the algebraic surface z₁ⁿ + z₂ⁿ = 1 from complex space onto a 2D plane, revealing the n²-patch lattice symmetry studied in string theory |
 | 85 | Soap Bubble Cluster | Packs spheres of varying radii using greedy collision detection, then renders each with iridescent thin-film colouring and a specular highlight |
 | 86 | Neural Mesh Sculpture | Places neuron nodes in layered 3D planes and connects adjacent layers with proximity-based synaptic edges, forming a glowing network sculpture |
+| 87 | Twisted Prism Tower | Stacks regular polygon floors that rotate by a cumulative angle as they rise, creating the helical facade seen in landmark skyscrapers |
+| 88 | Fractal Mountain | Uses the Diamond-Square algorithm to generate a heightmap with fractal self-similarity, producing realistic terrain at any resolution |
+| 89 | Volumetric Fog Cube | Builds a 3D density field from stacked noise octaves and renders high-density voxels as semi-transparent points, simulating fog or a nebula |
+| 90 | Strange Attractor 3D | Integrates four 3D chaotic ODE systems (Lorenz, Rössler, Thomas', Halvorsen) and draws the fractal phase-space trajectory as a gradient line |
 
 ---
 
