@@ -1439,9 +1439,116 @@ class NeuralMeshRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class TwistedPrismRenderer(_StubMixin, BasePattern):
-    name = "Twisted Prism Tower"
+class TwistedPrismRenderer(BasePattern):
+    """87 — Twisted Prism Tower"""
+    name  = "Twisted Prism Tower"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
+               n_sides=6, twist_deg=90, taper=0.30, show_floors=True,
+               alpha=0.70, view_elev=20, view_azim=30, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 20, "Medium": 40, "High": 70}
+        n_floors = _RES.get(resolution, 20)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cmap = LinearSegmentedColormap.from_list("tp", cols, N=256)
+
+        n_s = max(3, int(n_sides))
+        n_f = int(n_floors)
+        twist_total = np.radians(float(twist_deg))
+        tap = np.clip(float(taper), 0.0, 0.95)
+
+        def floor_verts(i):
+            t = i / n_f
+            r = 1.0 - tap * t
+            angle_off = t * twist_total
+            angles = np.linspace(0, 2.0 * np.pi, n_s, endpoint=False) + angle_off
+            return np.column_stack([r * np.cos(angles),
+                                    r * np.sin(angles),
+                                    np.full(n_s, t)])
+
+        floors = [floor_verts(i) for i in range(n_f + 1)]
+
+        # Side quads — one per (floor, edge) pair
+        side_faces, side_zc = [], []
+        for i in range(n_f):
+            f0, f1 = floors[i], floors[i + 1]
+            zc = (i + 0.5) / n_f
+            for k in range(n_s):
+                k1 = (k + 1) % n_s
+                side_faces.append([f0[k].tolist(), f0[k1].tolist(),
+                                    f1[k1].tolist(), f1[k].tolist()])
+                side_zc.append(zc)
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # Coloured side faces
+        zn = np.array(side_zc)
+        fcs = cmap(zn)
+        fcs[:, 3] = float(alpha)
+        poly = Poly3DCollection(side_faces, facecolors=fcs,
+                                edgecolors=(1, 1, 1, 0.12), linewidth=0.3)
+        ax.add_collection3d(poly)
+
+        # Sparse floor plates
+        if show_floors:
+            step_fp = max(1, n_f // 8)
+            fp_faces = [floors[i].tolist() for i in range(0, n_f + 1, step_fp)]
+            fp_zc    = np.array([i / n_f for i in range(0, n_f + 1, step_fp)])
+            fpcs     = cmap(fp_zc)
+            fpcs[:, 3] = 0.55
+            ax.add_collection3d(
+                Poly3DCollection(fp_faces, facecolors=fpcs,
+                                 edgecolors=(1, 1, 1, 0.25), linewidth=0.5))
+
+        lim = 1.15
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_zlim(-0.05, 1.10)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=6,  min=3,   max=12,  step=1,
+                        description="n_sides"),
+            w.IntSlider(value=90, min=0,   max=360, step=15,
+                        description="twist_deg"),
+            w.FloatSlider(value=0.30, min=0.0, max=0.80, step=0.05,
+                          description="taper"),
+            w.Checkbox(value=True, description="show_floors"),
+            w.FloatSlider(value=0.70, min=0.20, max=1.00, step=0.05,
+                          description="alpha"),
+            w.IntSlider(value=20, min=0,   max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=30, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class FractalMountainRenderer(_StubMixin, BasePattern):
     name = "Fractal Mountain"
