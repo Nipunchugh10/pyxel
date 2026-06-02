@@ -1550,9 +1550,120 @@ class TwistedPrismRenderer(BasePattern):
                         description="view_azim"),
         ]
 
-class FractalMountainRenderer(_StubMixin, BasePattern):
-    name = "Fractal Mountain"
+class FractalMountainRenderer(BasePattern):
+    """88 — Fractal Mountain"""
+    name  = "Fractal Mountain"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Forest", speed=1.0,
+               roughness=0.60, seed=42, sea_level=0.28, show_sea=True,
+               view_elev=35, view_azim=225, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 5, "Medium": 6, "High": 7}
+        n_power = _RES.get(resolution, 5)
+        N = 2 ** n_power + 1          # 33 / 65 / 129
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Forest"])
+        cmap = LinearSegmentedColormap.from_list("fm", cols, N=256)
+
+        rng = np.random.default_rng(int(seed))
+        H   = np.clip(float(roughness), 0.05, 1.0)   # Hurst exponent
+
+        # ── Diamond-Square terrain generation ─────────────────────────────────
+        grid = np.zeros((N, N))
+        for ci, cj in [(0, 0), (0, N-1), (N-1, 0), (N-1, N-1)]:
+            grid[ci, cj] = rng.uniform(-1.0, 1.0)
+
+        step  = N - 1
+        scale = 1.0
+        while step > 1:
+            half = step // 2
+
+            # Diamond step: centre of each (step × step) square
+            for y in range(0, N - 1, step):
+                for x in range(0, N - 1, step):
+                    avg = (grid[y, x] + grid[y, x + step] +
+                           grid[y + step, x] + grid[y + step, x + step]) / 4.0
+                    grid[y + half, x + half] = avg + rng.uniform(-scale, scale)
+
+            # Square step: midpoints of all diamond edges
+            for y in range(0, N, half):
+                for x in range(0, N, half):
+                    if (y // half + x // half) % 2 == 1:
+                        cnt, tot = 0, 0.0
+                        for dy, dx in [(-half, 0), (half, 0), (0, -half), (0, half)]:
+                            ny, nx = y + dy, x + dx
+                            if 0 <= ny < N and 0 <= nx < N:
+                                tot += grid[ny, nx]
+                                cnt += 1
+                        grid[y, x] = tot / cnt + rng.uniform(-scale, scale)
+
+            step   = half
+            scale *= 2.0 ** (-H)
+
+        # Normalise to [0, 1]
+        grid = (grid - grid.min()) / (grid.max() - grid.min() + 1e-9)
+
+        lin = np.linspace(-1.0, 1.0, N)
+        X, Y = np.meshgrid(lin, lin)
+        Z = grid
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        ax.plot_surface(X, Y, Z, facecolors=cmap(Z),
+                        linewidth=0, antialiased=True, shade=True, alpha=0.95)
+
+        # Optional sea plane
+        sea = float(sea_level)
+        if show_sea and sea > 0.0:
+            sx = np.array([[-1, 1], [-1, 1]])
+            sy = np.array([[-1, -1], [1, 1]])
+            sz = np.full_like(sx, sea)
+            ax.plot_surface(sx, sy, sz,
+                            color="#1155aa", alpha=0.30,
+                            linewidth=0, antialiased=False)
+
+        ax.set_zlim(0, 1.1)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=0.60, min=0.10, max=1.00, step=0.05,
+                          description="roughness"),
+            w.IntSlider(value=42, min=0, max=100, step=1,
+                        description="seed"),
+            w.FloatSlider(value=0.28, min=0.0, max=0.5, step=0.02,
+                          description="sea_level"),
+            w.Checkbox(value=True, description="show_sea"),
+            w.IntSlider(value=35,  min=0,   max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=225, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
 
 class VolumetricFogRenderer(_StubMixin, BasePattern):
     name = "Volumetric Fog Cube"
