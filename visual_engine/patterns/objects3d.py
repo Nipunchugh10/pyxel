@@ -1773,8 +1773,128 @@ class VolumetricFogRenderer(BasePattern):
                         description="view_elev"),
             w.IntSlider(value=45, min=0,   max=360, step=5,
                         description="view_azim"),
-        ]
+        ]   
 
-class StrangeAttractor3DRenderer(_StubMixin, BasePattern):
-    name = "Strange Attractor 3D"
+class StrangeAttractor3DRenderer(BasePattern):
+    """90 — Strange Attractor 3D"""
+    name  = "Strange Attractor 3D"
     group = "3D Objects & Sculptures"
+
+    def render(self, resolution="Low", palette="Lava Flow", speed=1.0,
+               attractor=0, view_elev=20, view_azim=30, **kwargs):
+        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+        from matplotlib.colors import LinearSegmentedColormap
+
+        _RES = {"Low": 30_000, "Medium": 60_000, "High": 120_000}
+        n_steps = _RES.get(resolution, 30_000)
+
+        PALETTES = {
+            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Lava Flow"])
+        cmap = LinearSegmentedColormap.from_list("sa", cols, N=256)
+
+        att = int(attractor) % 4
+
+        # ── ODE definitions ──────────────────────────────────────────────────
+        if att == 0:          # Lorenz (full 3D butterfly)
+            def f(p):
+                x, y, z = p
+                return np.array([10.0*(y - x),
+                                 x*(28.0 - z) - y,
+                                 x*y - (8.0/3.0)*z])
+            p0, dt = np.array([0.1, 0.0, 0.0]), 0.005
+            title  = "Lorenz"
+
+        elif att == 1:        # Rössler (spiral)
+            def f(p):
+                x, y, z = p
+                return np.array([-y - z, x + 0.2*y, 0.2 + z*(x - 5.7)])
+            p0, dt = np.array([0.1, 0.0, 0.0]), 0.010
+            title  = "R\u00f6ssler"
+
+        elif att == 2:        # Thomas' cyclically symmetric
+            def f(p):
+                x, y, z = p
+                b = 0.208
+                return np.array([np.sin(y) - b*x,
+                                 np.sin(z) - b*y,
+                                 np.sin(x) - b*z])
+            p0, dt = np.array([0.1, 0.0, 0.0]), 0.050
+            title  = "Thomas'"
+
+        else:                 # Halvorsen
+            def f(p):
+                x, y, z = p
+                a = 1.4
+                return np.array([-a*x - 4.0*y - 4.0*z - y**2,
+                                 -a*y - 4.0*z - 4.0*x - z**2,
+                                 -a*z - 4.0*x - 4.0*y - x**2])
+            p0, dt = np.array([0.1, 0.0, 0.0]), 0.005
+            title  = "Halvorsen"
+
+        # ── RK4 integration ──────────────────────────────────────────────────
+        pts = np.empty((n_steps, 3))
+        p   = p0.copy()
+        pts[0] = p
+        dt6 = dt / 6.0
+        for i in range(1, n_steps):
+            k1 = f(p)
+            k2 = f(p + 0.5*dt*k1)
+            k3 = f(p + 0.5*dt*k2)
+            k4 = f(p + dt*k3)
+            p  = p + dt6*(k1 + 2.0*k2 + 2.0*k3 + k4)
+            pts[i] = p
+
+        # Clip initial transient (first 5 % of trajectory)
+        skip = n_steps // 20
+        pts  = pts[skip:]
+
+        # Remove extreme outliers for display stability
+        for ax_idx in range(3):
+            q1, q3 = np.percentile(pts[:, ax_idx], [1, 99])
+            iqr = q3 - q1
+            pts = pts[(pts[:, ax_idx] >= q1 - 3*iqr) &
+                      (pts[:, ax_idx] <= q3 + 3*iqr)]
+
+        fig = plt.figure(figsize=(7, 7), facecolor="#030308")
+        ax  = fig.add_subplot(111, projection="3d")
+        ax.set_facecolor("#030308")
+        for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+            pane.fill = False
+            pane.set_edgecolor("none")
+        ax.grid(False)
+        ax.set_axis_off()
+
+        # Gradient line — colour encodes position along trajectory
+        segs   = np.stack([pts[:-1], pts[1:]], axis=1)
+        colors = cmap(np.linspace(0.0, 1.0, len(segs)))
+        lc = Line3DCollection(segs, colors=colors, linewidth=0.5, alpha=0.85)
+        ax.add_collection(lc)
+        ax.auto_scale_xyz(pts[:, 0], pts[:, 1], pts[:, 2])
+
+        ax.set_title(f"{title} Attractor", color="#aaaaaa", fontsize=10, pad=4)
+        ax.view_init(elev=view_elev, azim=view_azim)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=0, min=0, max=3, step=1,
+                        description="attractor"),
+            w.IntSlider(value=20, min=-90, max=90,  step=5,
+                        description="view_elev"),
+            w.IntSlider(value=30, min=0,   max=360, step=5,
+                        description="view_azim"),
+        ]
