@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **90 / 100** — in progress |
+| Pattern implementations | **95 / 100** — in progress |
 
 **Progress by group:**
 
@@ -34,7 +34,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 10 | 10 ✅ |
 | 3D Objects & Sculptures (71–90) | 20 | 20 ✅ |
-| Scientific & Simulation (91–100) | 0 | 10 |
+| Scientific & Simulation (91–100) | 5 | 10 |
 
 ---
 
