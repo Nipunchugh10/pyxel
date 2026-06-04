@@ -102,6 +102,93 @@ class NeuralNetworkVizRenderer(BasePattern):
         ]
 
 # ─────────────────────────────────────────────────────────────────────────────────
+# 92 — Atom Orbital Simulator
+# ─────────────────────────────────────────────────────────────────────────────────
+class AtomOrbitalRenderer(BasePattern):
+    """92 — Atom Orbital Simulator"""
+    name  = "Atom Orbital Simulator"
+    group = "Scientific & Simulation"
+
+    def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
+               n_qn=2, l_qn=1, m_qn=0, view_plane="xz", **kwargs):
+        from scipy.special import sph_harm, assoc_laguerre
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":  ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cmap = LinearSegmentedColormap.from_list(
+            "orb", [cols[0], cols[1], cols[2], cols[3]], N=512)
+        n = max(1, min(4, int(n_qn)))
+        l = max(0, min(n-1, int(l_qn)))
+        m = max(-l, min(l, int(m_qn)))
+        G = {"Low": 120, "Medium": 200, "High": 320}.get(resolution, 120)
+        lim     = 20 * n
+        ax_vals = np.linspace(-lim, lim, G)
+        A, B    = np.meshgrid(ax_vals, ax_vals)
+        vp = str(view_plane).lower()
+        if vp == "xy":
+            X, Y, Z = A, B, np.zeros_like(A)
+        elif vp == "yz":
+            X, Y, Z = np.zeros_like(A), A, B
+        else:
+            X, Y, Z = A, np.zeros_like(A), B
+        r     = np.sqrt(X**2 + Y**2 + Z**2) + 1e-12
+        theta = np.arccos(np.clip(Z / r, -1, 1))
+        phi   = np.arctan2(Y, X)
+        rho   = 2 * r / n
+        deg   = n - l - 1
+        if deg < 0:
+            R = np.zeros_like(rho)
+        else:
+            L = assoc_laguerre(rho, deg, 2*l+1)
+            R = np.exp(-rho/2) * (rho**l) * L
+        Y_lm = (np.real(sph_harm(m, l, phi, theta)) if m >= 0
+                else np.imag(sph_harm(abs(m), l, phi, theta)))
+        psi2 = (R * Y_lm)**2
+        pmax = psi2.max()
+        if pmax > 0:
+            psi2 /= pmax
+        fig, ax = plt.subplots(figsize=(7, 7), facecolor="#050a14")
+        ax.set_facecolor("#050a14")
+        im   = ax.imshow(psi2, origin="lower", extent=[-lim, lim, -lim, lim],
+                         cmap=cmap, interpolation="bilinear", vmin=0, vmax=1)
+        cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label(r"$|\psi|^2$ (normalised)", color=cols[2], fontsize=9)
+        cbar.ax.yaxis.set_tick_params(color=cols[2])
+        plt.setp(cbar.ax.yaxis.get_ticklabels(), color=cols[2])
+        cbar.outline.set_edgecolor(cols[1])
+        xlabel, ylabel = {"xy": ("x","y"), "yz": ("y","z"),
+                          "xz": ("x","z")}.get(vp, ("x","z"))
+        ax.set_xlabel(f"{xlabel} (Bohr radii)", color=cols[2], fontsize=9)
+        ax.set_ylabel(f"{ylabel} (Bohr radii)", color=cols[2], fontsize=9)
+        ax.tick_params(colors=cols[2])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(cols[1])
+        ax.set_title(f"Hydrogen Orbital  |  n={n}, l={l}, m={m}  |  plane={vp.upper()}",
+                     color=cols[3], fontsize=11, fontweight="bold", pad=8)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=2, min=1, max=4,  step=1, description="n_qn"),
+            w.IntSlider(value=1, min=0, max=3,  step=1, description="l_qn"),
+            w.IntSlider(value=0, min=-3, max=3, step=1, description="m_qn"),
+            w.Dropdown(options=["xz","xy","yz"], value="xz", description="view_plane"),
+        ]
+
+# ─────────────────────────────────────────────────────────────────────────────────
 # Remaining stubs
 # ─────────────────────────────────────────────────────────────────────────────────
 class _StubMixin:
