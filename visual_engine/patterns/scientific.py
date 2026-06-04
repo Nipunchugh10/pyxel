@@ -350,6 +350,92 @@ class GameOfLifeRenderer(BasePattern):
         ]
 
 # ─────────────────────────────────────────────────────────────────────────────────
+# 95 — Boids Flocking Simulation
+# ─────────────────────────────────────────────────────────────────────────────────
+class BoidsFlockingRenderer(BasePattern):
+    """95 — Boids Flocking Simulation"""
+    name  = "Boids Flocking Simulation"
+    group = "Scientific & Simulation"
+
+    def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
+               n_boids=120, n_steps=80, sep_weight=1.6, align_weight=1.0,
+               coh_weight=1.0, sep_radius=0.06, vis_radius=0.18, seed=42, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":  ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cmap = LinearSegmentedColormap.from_list(
+            "boids", [cols[1], cols[2], cols[3]], N=256)
+        rng = np.random.default_rng(int(seed))
+        N   = max(10, int(n_boids))
+        pos = rng.uniform(0.1, 0.9, (N, 2))
+        vel = rng.uniform(-0.005, 0.005, (N, 2))
+        max_speed, min_speed = 0.010, 0.003
+        def _clip(v):
+            spd = np.linalg.norm(v, axis=1, keepdims=True).clip(1e-12, None)
+            v = np.where(spd > max_speed, v/spd*max_speed, v)
+            v = np.where(spd < min_speed, v/spd*min_speed, v)
+            return v
+        R_sep, R_vis = float(sep_radius), float(vis_radius)
+        for _ in range(int(n_steps)):
+            diff = pos[:, None, :] - pos[None, :, :]
+            dist = np.linalg.norm(diff, axis=2)
+            eye    = np.eye(N, dtype=bool)
+            in_vis = (dist < R_vis) & ~eye
+            in_sep = (dist < R_sep) & ~eye
+            accel  = np.zeros((N, 2))
+            safe_d = np.where(dist < 1e-9, 1e-9, dist)
+            accel += float(sep_weight) * np.where(
+                in_sep[:,:,None], -diff/safe_d[:,:,None]**2, 0.0).sum(axis=1)
+            cnt = in_vis.sum(axis=1, keepdims=True).clip(1, None)
+            accel += float(align_weight) * (
+                (vel[None,:,:]*in_vis[:,:,None]).sum(axis=1)/cnt - vel)
+            accel += float(coh_weight) * (
+                (pos[None,:,:]*in_vis[:,:,None]).sum(axis=1)/cnt - pos) * 0.05
+            vel  = _clip(vel + accel*0.05)
+            pos  = (pos + vel) % 1.0
+        spd   = np.linalg.norm(vel, axis=1)
+        spd_n = (spd - spd.min()) / (spd.max() - spd.min() + 1e-9)
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor=cols[0])
+        ax.set_facecolor(cols[0]); ax.set_aspect("equal")
+        ax.quiver(pos[:,0], pos[:,1], vel[:,0], vel[:,1],
+                  color=cmap(spd_n), angles="xy", scale_units="xy",
+                  scale=0.12, width=0.003, headwidth=4, headlength=5,
+                  alpha=0.9, zorder=3)
+        ax.scatter(pos[:,0], pos[:,1], c=spd_n, cmap=cmap, s=18,
+                   zorder=4, linewidths=0)
+        ax.set_xlim(0,1); ax.set_ylim(0,1)
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values(): spine.set_edgecolor(cols[2])
+        ax.set_title(
+            f"Boids Flocking  |  N={N}  |  {int(n_steps)} steps  "
+            f"|  sep={float(sep_weight):.1f}  align={float(align_weight):.1f}  "
+            f"coh={float(coh_weight):.1f}",
+            color=cols[3], fontsize=10, fontweight="bold", pad=8)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=120, min=20, max=300, step=10,        description="n_boids"),
+            w.IntSlider(value=80,  min=10, max=200, step=10,        description="n_steps"),
+            w.FloatSlider(value=1.6, min=0.0, max=4.0, step=0.2,   description="sep_weight"),
+            w.FloatSlider(value=1.0, min=0.0, max=4.0, step=0.2,   description="align_weight"),
+            w.FloatSlider(value=1.0, min=0.0, max=4.0, step=0.2,   description="coh_weight"),
+        ]
+
+# ─────────────────────────────────────────────────────────────────────────────────
 # Remaining stubs
 # ─────────────────────────────────────────────────────────────────────────────────
 class _StubMixin:
