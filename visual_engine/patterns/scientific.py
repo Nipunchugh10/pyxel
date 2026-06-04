@@ -270,6 +270,86 @@ class BlackHoleLensingRenderer(BasePattern):
         ]
 
 # ─────────────────────────────────────────────────────────────────────────────────
+# 94 — Conway's Game of Life
+# ─────────────────────────────────────────────────────────────────────────────────
+class GameOfLifeRenderer(BasePattern):
+    """94 — Conway's Game of Life"""
+    name  = "Conway's Game of Life"
+    group = "Scientific & Simulation"
+
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               n_gens=60, start_pattern="random", density=0.30, seed=0, **kwargs):
+        from scipy.ndimage import convolve
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":  ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list(
+            "gol", ["#000000", cols[1], cols[2], cols[3]], N=256)
+        G   = {"Low": 80, "Medium": 120, "High": 160}.get(resolution, 80)
+        rng = np.random.default_rng(int(seed))
+        grid = np.zeros((G, G), dtype=np.int8)
+        pat  = str(start_pattern).lower()
+        if pat == "glider":
+            for cy, cx in [(G//4, G//4), (G//2, G//2)]:
+                for dy, dx in [(0,1),(1,2),(2,0),(2,1),(2,2)]:
+                    grid[(cy+dy)%G, (cx+dx)%G] = 1
+        elif pat == "r-pentomino":
+            cy, cx = G//2, G//2
+            for dy, dx in [(-1,0),(-1,1),(0,-1),(0,0),(1,0)]:
+                grid[(cy+dy)%G, (cx+dx)%G] = 1
+        elif pat == "gosper_gun":
+            gun = [(5,1),(5,2),(6,1),(6,2),(5,11),(6,11),(7,11),(4,12),(8,12),
+                   (3,13),(9,13),(3,14),(9,14),(6,15),(4,16),(8,16),(5,17),(6,17),
+                   (7,17),(6,18),(3,21),(4,21),(5,21),(3,22),(4,22),(5,22),(2,23),
+                   (6,23),(1,25),(2,25),(6,25),(7,25),(3,35),(4,35),(3,36),(4,36)]
+            oy, ox = G//4, G//4
+            for dy, dx in gun:
+                if 0 <= oy+dy < G and 0 <= ox+dx < G:
+                    grid[oy+dy, ox+dx] = 1
+        else:
+            grid = (rng.uniform(0, 1, (G, G)) < float(density)).astype(np.int8)
+        kernel = np.ones((3, 3), dtype=np.int8); kernel[1,1] = 0
+        age = grid.copy().astype(np.float32)
+        for _ in range(int(n_gens)):
+            nbrs = convolve(grid, kernel, mode="wrap")
+            new_grid = ((grid==0)&(nbrs==3) | (grid==1)&((nbrs==2)|(nbrs==3))).astype(np.int8)
+            age  = np.where(new_grid==1, age+1, 0.0)
+            grid = new_grid
+        disp = np.where(grid==1, np.log1p(age)/(np.log1p(age.max())+1e-9), 0.0)
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor="#000000")
+        ax.set_facecolor("#000000")
+        ax.imshow(disp, origin="lower", cmap=cmap, interpolation="nearest", vmin=0, vmax=1)
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values(): spine.set_edgecolor(cols[1])
+        ax.set_title(
+            f"Conway's Game of Life  |  {G}x{G}  |  {int(n_gens)} gens  "
+            f"|  {int(grid.sum())} alive  |  {start_pattern}",
+            color=cols[3], fontsize=10, fontweight="bold", pad=8)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.Dropdown(options=["random","glider","r-pentomino","gosper_gun"],
+                       value="random", description="start_pattern"),
+            w.IntSlider(value=60,  min=10, max=200, step=10,         description="n_gens"),
+            w.FloatSlider(value=0.30, min=0.05, max=0.60, step=0.05, description="density"),
+            w.IntSlider(value=0, min=0, max=999, step=1,             description="seed"),
+        ]
+
+# ─────────────────────────────────────────────────────────────────────────────────
 # Remaining stubs
 # ─────────────────────────────────────────────────────────────────────────────────
 class _StubMixin:
