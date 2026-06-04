@@ -189,6 +189,87 @@ class AtomOrbitalRenderer(BasePattern):
         ]
 
 # ─────────────────────────────────────────────────────────────────────────────────
+# 93 — Black Hole Lensing
+# ─────────────────────────────────────────────────────────────────────────────────
+class BlackHoleLensingRenderer(BasePattern):
+    """93 — Black Hole Lensing"""
+    name  = "Black Hole Lensing"
+    group = "Scientific & Simulation"
+
+    def render(self, resolution="Low", palette="Inferno", speed=1.0,
+               mass=1.0, n_rings=5, n_stars=400, star_seed=7,
+               show_photon_sphere=True, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk":  ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols     = PALETTES.get(palette, PALETTES["Inferno"])
+        cmap_acc = LinearSegmentedColormap.from_list(
+            "acc", ["#000000","#200010","#aa2200","#ff8800","#ffffa0"], N=512)
+        rng  = np.random.default_rng(int(star_seed))
+        M    = max(0.1, float(mass))
+        rs   = 2 * M
+        N    = {"Low": 400, "Medium": 700, "High": 1000}.get(resolution, 400)
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor="#000000")
+        ax.set_facecolor("#000000"); ax.set_aspect("equal"); ax.axis("off")
+        view = 12 * M
+        sx = rng.uniform(-view, view, n_stars)
+        sy = rng.uniform(-view, view, n_stars)
+        visible = np.sqrt(sx**2 + sy**2) > rs * 1.1
+        sx, sy  = sx[visible], sy[visible]
+        ax.scatter(sx, sy, s=rng.uniform(1, 8, len(sx)),
+                   c=rng.uniform(0.3, 1.0, len(sx)),
+                   cmap="gray", alpha=0.7, zorder=1, linewidths=0)
+        theta_vals   = np.linspace(0, 2*np.pi, 400)
+        source_radii = np.linspace(3.5*M, 10*M, n_rings)
+        for ri, r_src in enumerate(source_radii):
+            r_app = r_src / (1 + 4*M/r_src)
+            hue   = ri / max(n_rings-1, 1)
+            ax.plot(r_app*np.cos(theta_vals), r_app*np.sin(theta_vals),
+                    color=plt.cm.hsv(hue), linewidth=max(0.5, 1.8-ri*0.2),
+                    alpha=0.75, zorder=3)
+        r_isco  = 3 * rs
+        r_disk  = np.linspace(r_isco, 6*M, 120)
+        phi_acc = np.linspace(0, 2*np.pi, N)
+        R_acc, Phi_acc = np.meshgrid(r_disk, phi_acc)
+        brightness = (r_isco/R_acc)**2.5 * rng.uniform(0.6, 1.0, R_acc.shape)
+        brightness /= brightness.max()
+        ax.scatter(R_acc.ravel()*np.cos(Phi_acc.ravel()),
+                   R_acc.ravel()*np.sin(Phi_acc.ravel()),
+                   c=brightness.ravel(), cmap=cmap_acc,
+                   s=0.8, alpha=0.6, zorder=2, linewidths=0)
+        ax.add_patch(plt.Circle((0, 0), rs, color="black", zorder=5))
+        if show_photon_sphere:
+            ax.add_patch(plt.Circle((0, 0), 1.5*rs, fill=False,
+                                    edgecolor="#ff8800", linewidth=1.2,
+                                    linestyle="--", alpha=0.6, zorder=6))
+            ax.text(0, 1.5*rs+0.3*M, "photon sphere", ha="center",
+                    color="#ff8800", fontsize=7, alpha=0.8, zorder=7)
+        ax.set_xlim(-view, view); ax.set_ylim(-view, view)
+        ax.set_title("Black Hole Lensing", color=cols[3],
+                     fontsize=13, fontweight="bold", pad=8)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=1.0, min=0.3, max=3.0, step=0.1, description="mass"),
+            w.IntSlider(value=5,   min=2, max=12, step=1,         description="n_rings"),
+            w.IntSlider(value=400, min=100, max=800, step=50,     description="n_stars"),
+            w.Checkbox(value=True,                                 description="show_photon_sphere"),
+        ]
+
+# ─────────────────────────────────────────────────────────────────────────────────
 # Remaining stubs
 # ─────────────────────────────────────────────────────────────────────────────────
 class _StubMixin:
