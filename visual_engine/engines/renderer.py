@@ -54,6 +54,22 @@ class BasePattern(ABC):
         """
         ...
 
+    # ── Animation Support ─────────────────────────────────────────
+
+    def animate(self, n_frames=30, fps=15, **kwargs):
+        """
+        Override in animatable patterns to produce a frame sequence.
+
+        Returns a list of (H, W, 3) uint8 numpy arrays suitable for
+        export_gif() / export_mp4(), or None if not animatable.
+        """
+        return None
+
+    @property
+    def is_animatable(self):
+        """True if this pattern overrides animate() and supports frame export."""
+        return type(self).animate is not BasePattern.animate
+
     # ── Helpers ───────────────────────────────────────────────────
 
     def _create_figure(self, figsize=(8, 8), dpi=100, bg_color="#0a0a0a"):

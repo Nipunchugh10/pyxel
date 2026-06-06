@@ -348,6 +348,53 @@ class GameOfLifeRenderer(BasePattern):
             w.IntSlider(value=0, min=0, max=999, step=1,             description="seed"),
         ]
 
+    def animate(self, n_frames=40, fps=10, resolution="Low", palette="Neon Cyberpunk",
+                start_pattern="random", density=0.30, seed=0, **kwargs):
+        from scipy.ndimage import convolve
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        PALETTES = {
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list("gol", ["#000000", cols[1], cols[2], cols[3]], N=256)
+        G = {"Low": 80, "Medium": 120, "High": 160}.get(resolution, 80)
+        rng = np.random.default_rng(int(seed))
+        grid = np.zeros((G, G), dtype=np.int8)
+        pat = str(start_pattern).lower()
+        if pat == "glider":
+            for cy, cx in [(G//4, G//4), (G//2, G//2)]:
+                for dy, dx in [(0,1),(1,2),(2,0),(2,1),(2,2)]:
+                    grid[(cy+dy)%G, (cx+dx)%G] = 1
+        elif pat == "r-pentomino":
+            cy, cx = G//2, G//2
+            for dy, dx in [(-1,0),(-1,1),(0,-1),(0,0),(1,0)]:
+                grid[(cy+dy)%G, (cx+dx)%G] = 1
+        else:
+            grid = (rng.uniform(0, 1, (G, G)) < float(density)).astype(np.int8)
+        kernel = np.ones((3, 3), dtype=np.int8); kernel[1,1] = 0
+        age = grid.copy().astype(np.float32)
+        total_gens = n_frames * 2
+        frames = []
+        for gen in range(total_gens):
+            nbrs = convolve(grid, kernel, mode="wrap")
+            new_grid = ((grid==0)&(nbrs==3) | (grid==1)&((nbrs==2)|(nbrs==3))).astype(np.int8)
+            age = np.where(new_grid==1, age+1, 0.0)
+            grid = new_grid
+            if gen % 2 == 0:
+                disp = np.where(grid==1, np.log1p(age)/(np.log1p(age.max())+1e-9), 0.0)
+                fig, ax = plt.subplots(figsize=(6, 6), facecolor="#000000")
+                ax.set_facecolor("#000000")
+                ax.imshow(disp, origin="lower", cmap=cmap, interpolation="nearest", vmin=0, vmax=1)
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title(f"Game of Life | gen {gen+1}", color=cols[3], fontsize=9, pad=4)
+                plt.tight_layout()
+                frames.append(capture_frame(fig))
+                plt.close(fig)
+        return frames
+
 # ─────────────────────────────────────────────────────────────────────────────────
 # 95 — Boids Flocking Simulation
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -433,6 +480,58 @@ class BoidsFlockingRenderer(BasePattern):
             w.FloatSlider(value=1.0, min=0.0, max=4.0, step=0.2,   description="align_weight"),
             w.FloatSlider(value=1.0, min=0.0, max=4.0, step=0.2,   description="coh_weight"),
         ]
+
+    def animate(self, n_frames=40, fps=12, palette="Arctic Aurora", n_boids=80,
+                sep_weight=1.6, align_weight=1.0, coh_weight=1.0, seed=42, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        PALETTES = {
+            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cmap = LinearSegmentedColormap.from_list("boids", [cols[1], cols[2], cols[3]], N=256)
+        rng = np.random.default_rng(int(seed))
+        N = max(10, int(n_boids))
+        pos = rng.uniform(0.1, 0.9, (N, 2))
+        vel = rng.uniform(-0.005, 0.005, (N, 2))
+        max_speed, min_speed = 0.010, 0.003
+        R_sep, R_vis = 0.06, 0.18
+        frames = []
+        for step in range(n_frames * 2):
+            diff = pos[:, None, :] - pos[None, :, :]
+            dist = np.linalg.norm(diff, axis=2)
+            eye = np.eye(N, dtype=bool)
+            in_vis = (dist < R_vis) & ~eye
+            in_sep = (dist < R_sep) & ~eye
+            accel = np.zeros((N, 2))
+            safe_d = np.where(dist < 1e-9, 1e-9, dist)
+            accel += float(sep_weight) * np.where(
+                in_sep[:,:,None], -diff/safe_d[:,:,None]**2, 0.0).sum(axis=1)
+            cnt = in_vis.sum(axis=1, keepdims=True).clip(1, None)
+            accel += float(align_weight) * (
+                (vel[None,:,:]*in_vis[:,:,None]).sum(axis=1)/cnt - vel)
+            accel += float(coh_weight) * (
+                (pos[None,:,:]*in_vis[:,:,None]).sum(axis=1)/cnt - pos) * 0.05
+            vel = vel + accel * 0.05
+            spd = np.linalg.norm(vel, axis=1, keepdims=True).clip(1e-12, None)
+            vel = np.where(spd > max_speed, vel/spd*max_speed, vel)
+            vel = np.where(spd < min_speed, vel/spd*min_speed, vel)
+            pos = (pos + vel) % 1.0
+            if step % 2 == 0:
+                spd_n = (np.linalg.norm(vel, axis=1) - min_speed) / (max_speed - min_speed + 1e-9)
+                fig, ax = plt.subplots(figsize=(6, 6), facecolor=cols[0])
+                ax.set_facecolor(cols[0]); ax.set_aspect("equal")
+                ax.quiver(pos[:,0], pos[:,1], vel[:,0], vel[:,1],
+                          color=cmap(spd_n), angles="xy", scale_units="xy",
+                          scale=0.12, width=0.003, headwidth=4, alpha=0.9)
+                ax.set_xlim(0,1); ax.set_ylim(0,1)
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title(f"Boids | step {step+1}", color=cols[3], fontsize=9, pad=4)
+                plt.tight_layout()
+                frames.append(capture_frame(fig))
+                plt.close(fig)
+        return frames
 
 
 class TrafficFlowRenderer(BasePattern):
@@ -539,6 +638,55 @@ class TrafficFlowRenderer(BasePattern):
             w.IntSlider(value=42,  min=0,  max=999, step=1,        description="seed"),
         ]
 
+    def animate(self, n_frames=50, fps=10, palette="Sunset Blaze",
+                road_length=200, n_cars=50, v_max=5, p_slow=0.3, seed=42, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        cols = ["#1a0505", "#cc2200", "#ff8800", "#ffee44"]
+        cmap = LinearSegmentedColormap.from_list("traffic", ["#000000", cols[1], cols[2], cols[3]], N=256)
+        rng = np.random.default_rng(int(seed))
+        L = max(50, int(road_length))
+        N_cars = min(int(n_cars), L - 1)
+        Vmax = max(1, int(v_max))
+        p = float(p_slow)
+        positions = np.sort(rng.choice(L, N_cars, replace=False))
+        velocities = rng.integers(0, Vmax + 1, N_cars)
+        frames = []
+        spacetime = np.full((n_frames * 3, L), -1, dtype=np.int8)
+        for t in range(n_frames * 3):
+            spacetime[t, positions] = velocities
+            velocities = np.minimum(velocities + 1, Vmax)
+            sorted_idx = np.argsort(positions)
+            pos_sorted = positions[sorted_idx]
+            vel_sorted = velocities[sorted_idx]
+            gaps = np.empty(N_cars, dtype=np.int64)
+            gaps[:-1] = pos_sorted[1:] - pos_sorted[:-1] - 1
+            gaps[-1] = (pos_sorted[0] + L) - pos_sorted[-1] - 1
+            vel_sorted = np.minimum(vel_sorted, gaps)
+            rand_mask = rng.uniform(0, 1, N_cars) < p
+            vel_sorted = np.where(rand_mask, np.maximum(vel_sorted - 1, 0), vel_sorted)
+            pos_sorted = (pos_sorted + vel_sorted) % L
+            inv_idx = np.empty_like(sorted_idx)
+            inv_idx[sorted_idx] = np.arange(N_cars)
+            positions = pos_sorted[inv_idx]
+            velocities = vel_sorted[inv_idx]
+            if t % 3 == 0:
+                fig, ax = plt.subplots(figsize=(8, 4), facecolor=cols[0])
+                ax.set_facecolor(cols[0])
+                end = t + 1
+                st = spacetime[:end]
+                t_c, x_c = np.where(st >= 0)
+                v_v = st[st >= 0].astype(np.float32) / Vmax
+                ax.scatter(x_c, t_c, c=v_v, cmap=cmap, s=1.0, marker='s', linewidths=0, vmin=0, vmax=1)
+                ax.set_xlim(0, L); ax.set_ylim(end, 0)
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title(f"Traffic Flow | t={t+1}", color=cols[3], fontsize=9, pad=4)
+                plt.tight_layout()
+                frames.append(capture_frame(fig))
+                plt.close(fig)
+        return frames
+
+
 class EcosystemRenderer(BasePattern):
     """97 — Ecosystem Predator-Prey (Lotka-Volterra)"""
     name  = "Ecosystem Predator-Prey"
@@ -631,6 +779,50 @@ class EcosystemRenderer(BasePattern):
             w.FloatSlider(value=5.0,  min=1.0, max=30.0, step=1.0, description="pred_0"),
             w.FloatSlider(value=50.0, min=10.0, max=200.0, step=10.0, description="t_max"),
         ]
+
+    def animate(self, n_frames=40, fps=10, palette="Forest",
+                alpha=1.1, beta=0.4, delta=0.1, gamma=0.4,
+                prey_0=10.0, pred_0=5.0, t_max=50.0, **kwargs):
+        from engines.animation import capture_frame
+        cols = ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"]
+        a, b, d, g = float(alpha), float(beta), float(delta), float(gamma)
+        x0, y0, T = float(prey_0), float(pred_0), float(t_max)
+        dt = 0.01
+        N_pts = int(T / dt)
+        t_arr = np.linspace(0, T, N_pts)
+        x, y = np.empty(N_pts), np.empty(N_pts)
+        x[0], y[0] = x0, y0
+        def deriv(xi, yi):
+            return a*xi - b*xi*yi, d*xi*yi - g*yi
+        for i in range(N_pts - 1):
+            k1x, k1y = deriv(x[i], y[i])
+            k2x, k2y = deriv(x[i]+dt/2*k1x, y[i]+dt/2*k1y)
+            k3x, k3y = deriv(x[i]+dt/2*k2x, y[i]+dt/2*k2y)
+            k4x, k4y = deriv(x[i]+dt*k3x, y[i]+dt*k3y)
+            x[i+1] = max(0, x[i] + dt/6*(k1x + 2*k2x + 2*k3x + k4x))
+            y[i+1] = max(0, y[i] + dt/6*(k1y + 2*k2y + 2*k3y + k4y))
+        frames = []
+        step = max(1, N_pts // n_frames)
+        for f in range(n_frames):
+            end = min((f+1) * step, N_pts)
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4), facecolor=cols[0])
+            for ax in (ax1, ax2):
+                ax.set_facecolor(cols[0])
+                ax.tick_params(colors=cols[2])
+            ax1.plot(t_arr[:end], x[:end], color=cols[2], linewidth=1.2, label="Prey")
+            ax1.plot(t_arr[:end], y[:end], color=cols[3], linewidth=1.2, label="Predator")
+            ax1.set_xlim(0, T); ax1.set_ylim(0, max(x.max(), y.max())*1.1)
+            ax1.set_title("Populations", color=cols[3], fontsize=9)
+            ax1.legend(fontsize=7, framealpha=0.4, labelcolor=cols[3])
+            ax2.plot(x[:end], y[:end], color=cols[2], linewidth=0.8)
+            ax2.scatter([x[end-1]], [y[end-1]], color=cols[3], s=40, zorder=5)
+            ax2.set_xlim(0, x.max()*1.1); ax2.set_ylim(0, y.max()*1.1)
+            ax2.set_title("Phase Portrait", color=cols[3], fontsize=9)
+            plt.tight_layout()
+            frames.append(capture_frame(fig))
+            plt.close(fig)
+        return frames
+
 
 class AntColonyRenderer(BasePattern):
     """98 — Ant Colony Optimization (TSP)"""
@@ -756,6 +948,72 @@ class AntColonyRenderer(BasePattern):
             w.FloatSlider(value=0.5, min=0.1, max=0.9, step=0.1,  description="evaporation"),
             w.IntSlider(value=42, min=0, max=999, step=1,          description="seed"),
         ]
+
+    def animate(self, n_frames=30, fps=8, palette="Lava Flow",
+                n_cities=20, n_ants=20, alpha_aco=1.0, beta_aco=3.0,
+                evaporation=0.5, seed=42, **kwargs):
+        from matplotlib.collections import LineCollection
+        from engines.animation import capture_frame
+        cols = ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"]
+        rng = np.random.default_rng(int(seed))
+        NC = max(5, int(n_cities))
+        N_ants = max(5, int(n_ants))
+        a_exp, b_exp, rho = float(alpha_aco), float(beta_aco), float(evaporation)
+        cities = rng.uniform(0.05, 0.95, (NC, 2))
+        diff = cities[:, None, :] - cities[None, :, :]
+        dist = np.sqrt((diff**2).sum(axis=2))
+        np.fill_diagonal(dist, 1e-12)
+        pheromone = np.ones((NC, NC))
+        eta = 1.0 / dist
+        best_tour, best_length = None, np.inf
+        frames = []
+        iters = n_frames
+        for iteration in range(iters):
+            tours, lengths = [], []
+            for _ in range(N_ants):
+                visited = [rng.integers(0, NC)]
+                for _ in range(NC - 1):
+                    curr = visited[-1]
+                    unvisited = [j for j in range(NC) if j not in visited]
+                    probs = np.array([(pheromone[curr,j]**a_exp)*(eta[curr,j]**b_exp) for j in unvisited])
+                    probs /= probs.sum()
+                    visited.append(unvisited[rng.choice(len(unvisited), p=probs)])
+                tours.append(visited)
+                length = sum(dist[visited[i], visited[(i+1)%NC]] for i in range(NC))
+                lengths.append(length)
+                if length < best_length:
+                    best_length, best_tour = length, visited[:]
+            pheromone *= (1 - rho)
+            for tour, length in zip(tours, lengths):
+                dep = 1.0 / length
+                for i in range(NC):
+                    a_c, b_c = tour[i], tour[(i+1)%NC]
+                    pheromone[a_c, b_c] += dep
+                    pheromone[b_c, a_c] += dep
+            # Capture frame
+            fig, ax = plt.subplots(figsize=(6, 6), facecolor=cols[0])
+            ax.set_facecolor(cols[0]); ax.set_aspect("equal")
+            pmax = pheromone.max()
+            segs, seg_a = [], []
+            for i in range(NC):
+                for j in range(i+1, NC):
+                    s = pheromone[i,j] / pmax
+                    if s > 0.05:
+                        segs.append([cities[i], cities[j]])
+                        seg_a.append((*[int(c,16)/255 for c in [cols[2][1:3],cols[2][3:5],cols[2][5:7]]], s*0.7))
+            if segs:
+                ax.add_collection(LineCollection(segs, colors=seg_a, linewidths=[c[3]*3 for c in seg_a]))
+            if best_tour:
+                tp = cities[best_tour + [best_tour[0]]]
+                ax.plot(tp[:,0], tp[:,1], color=cols[3], linewidth=2, alpha=0.9)
+            ax.scatter(cities[:,0], cities[:,1], s=60, color=cols[2], edgecolors=cols[3], linewidths=1.2, zorder=4)
+            ax.set_xlim(0,1); ax.set_ylim(0,1); ax.set_xticks([]); ax.set_yticks([])
+            ax.set_title(f"ACO | iter {iteration+1} | best={best_length:.2f}", color=cols[3], fontsize=9, pad=4)
+            plt.tight_layout()
+            frames.append(capture_frame(fig))
+            plt.close(fig)
+        return frames
+
 
 class FluidDynamicsRenderer(BasePattern):
     """99 — Fluid Dynamics (Smoothed Particle Hydrodynamics)"""
@@ -888,6 +1146,71 @@ class FluidDynamicsRenderer(BasePattern):
             w.IntSlider(value=7, min=0, max=999, step=1,              description="seed"),
         ]
 
+    def animate(self, n_frames=40, fps=10, palette="Ocean Depths",
+                n_particles=200, gravity=9.8, viscosity=0.02,
+                rest_density=1000.0, gas_const=2000.0, seed=7, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        cols = ["#0a1628", "#0066cc", "#00ccff", "#80ffee"]
+        cmap = LinearSegmentedColormap.from_list("sph", cols, N=256)
+        rng = np.random.default_rng(int(seed))
+        N = max(50, int(n_particles))
+        g_val, mu, rho0, k = float(gravity), float(viscosity), float(rest_density), float(gas_const)
+        h, mass, dt = 0.04, 1.0, 0.0008
+        h2 = h * h
+        poly6_c = 315.0 / (64.0 * np.pi * h**9)
+        spiky_c = -45.0 / (np.pi * h**6)
+        visc_c  = 45.0 / (np.pi * h**6)
+        side = int(np.ceil(np.sqrt(N)))
+        spacing = 0.015
+        pos = []
+        for i in range(side):
+            for j in range(side):
+                if len(pos) >= N: break
+                pos.append([0.15+i*spacing+rng.uniform(-0.001,0.001), 0.5+j*spacing+rng.uniform(-0.001,0.001)])
+        pos = np.array(pos[:N])
+        vel = np.zeros((N, 2))
+        frames = []
+        total_steps = n_frames * 3
+        for step in range(total_steps):
+            diff = pos[:, None, :] - pos[None, :, :]
+            r2 = (diff**2).sum(axis=2)
+            mask = r2 < h2
+            density = mass * poly6_c * np.where(mask, (h2 - r2)**3, 0.0).sum(axis=1)
+            density = np.maximum(density, rho0 * 0.1)
+            pressure = k * (density - rho0)
+            r_dist = np.sqrt(r2 + 1e-12)
+            force = np.zeros((N, 2))
+            for i in range(N):
+                nb = np.where(mask[i] & (r_dist[i] > 1e-6))[0]
+                if len(nb) == 0: continue
+                rij, dij = diff[i, nb], r_dist[i, nb]
+                p_avg = (pressure[i] + pressure[nb]) / (2.0 * density[nb])
+                force[i] += mass * (p_avg * spiky_c * (h - dij)**2)[:, None] * (rij / dij[:, None])
+                force[i] += (mu * mass * ((vel[nb] - vel[i]) * visc_c * (h - dij)[:, None]) / density[nb, None]).sum(axis=0)
+            force[:, 1] -= g_val * density
+            vel += dt * force / density[:, None]
+            pos += dt * vel
+            for dim in range(2):
+                below, above = pos[:, dim] < 0.02, pos[:, dim] > 0.98
+                pos[below, dim] = 0.02; pos[above, dim] = 0.98
+                vel[below, dim] *= -0.3; vel[above, dim] *= -0.3
+            if step % 3 == 0:
+                rho_n = (density - density.min()) / (density.max() - density.min() + 1e-9)
+                spd = np.linalg.norm(vel, axis=1)
+                cv = 0.6 * rho_n + 0.4 * spd / (spd.max() + 1e-9)
+                fig, ax = plt.subplots(figsize=(6, 6), facecolor=cols[0])
+                ax.set_facecolor(cols[0]); ax.set_aspect("equal")
+                ax.scatter(pos[:,0], pos[:,1], c=cv, cmap=cmap, s=25, alpha=0.85, linewidths=0, vmin=0, vmax=1)
+                ax.add_patch(plt.Rectangle((0.02,0.02), 0.96, 0.96, fill=False, edgecolor=cols[2], linewidth=1.2))
+                ax.set_xlim(0,1); ax.set_ylim(0,1); ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title(f"SPH Fluid | step {step+1}", color=cols[3], fontsize=9, pad=4)
+                plt.tight_layout()
+                frames.append(capture_frame(fig))
+                plt.close(fig)
+        return frames
+
+
 class QuantumWaveRenderer(BasePattern):
     """100 — Quantum Wave Packet (Split-Step Fourier Method)"""
     name  = "Quantum Wave Packet"
@@ -1006,3 +1329,53 @@ class QuantumWaveRenderer(BasePattern):
                        value="barrier", description="potential"),
             w.FloatSlider(value=8.0, min=1.0, max=20.0, step=1.0,    description="barrier_height"),
         ]
+
+    def animate(self, n_frames=50, fps=15, palette="Neon Cyberpunk",
+                x0=-3.0, k0=5.0, sigma=0.5, potential="barrier",
+                barrier_height=8.0, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        cols = ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"]
+        Nx = 512
+        L = 12.0
+        x = np.linspace(-L, L, Nx)
+        dx = x[1] - x[0]
+        k_arr = np.fft.fftfreq(Nx, d=dx) * 2 * np.pi
+        dt = 0.005
+        steps = n_frames * 4
+        x_0, k_0, sig = float(x0), float(k0), float(sigma)
+        V_height = float(barrier_height)
+        psi = (2*np.pi*sig**2)**(-0.25) * np.exp(-(x-x_0)**2/(4*sig**2) + 1j*k_0*x)
+        pot_type = str(potential).lower()
+        if pot_type == "barrier":
+            V = np.where((x > 0) & (x < 0.5), V_height, 0.0)
+        elif pot_type == "well":
+            V = np.where((x > -1) & (x < 1), -V_height, 0.0)
+        elif pot_type == "harmonic":
+            V = 0.5 * V_height * x**2 / L**2
+        else:
+            V = np.where((x > 0) & (x < 0.5), V_height, 0.0)
+        exp_V_half = np.exp(-0.5j * V * dt)
+        exp_T = np.exp(-0.5j * k_arr**2 * dt)
+        psi_init = np.abs(psi)**2
+        v_max_display = psi_init.max() * 1.5
+        v_scale = v_max_display / (V.max() + 1e-9) * 0.3 if V.max() > 0 else 0
+        frames = []
+        for step in range(steps):
+            psi = exp_V_half * psi
+            psi = np.fft.ifft(exp_T * np.fft.fft(psi))
+            psi = exp_V_half * psi
+            if step % 4 == 0:
+                prob = np.abs(psi)**2
+                fig, ax = plt.subplots(figsize=(8, 4), facecolor=cols[0])
+                ax.set_facecolor(cols[0])
+                ax.fill_between(x, 0, V * v_scale, color=cols[1], alpha=0.25)
+                ax.fill_between(x, 0, prob, color=cols[2], alpha=0.5)
+                ax.plot(x, prob, color=cols[3], linewidth=1.5)
+                ax.set_xlim(-L, L); ax.set_ylim(0, v_max_display)
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title(f"Quantum Wave Packet | t={step*dt:.3f}", color=cols[3], fontsize=9, pad=4)
+                plt.tight_layout()
+                frames.append(capture_frame(fig))
+                plt.close(fig)
+        return frames
