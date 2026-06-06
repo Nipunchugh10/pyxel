@@ -1186,7 +1186,7 @@ class FluidDynamicsRenderer(BasePattern):
                 if len(nb) == 0: continue
                 rij, dij = diff[i, nb], r_dist[i, nb]
                 p_avg = (pressure[i] + pressure[nb]) / (2.0 * density[nb])
-                force[i] += mass * (p_avg * spiky_c * (h - dij)**2)[:, None] * (rij / dij[:, None])
+                force[i] += (mass * (p_avg * spiky_c * (h - dij)**2)[:, None] * (rij / dij[:, None])).sum(axis=0)
                 force[i] += (mu * mass * ((vel[nb] - vel[i]) * visc_c * (h - dij)[:, None]) / density[nb, None]).sum(axis=0)
             force[:, 1] -= g_val * density
             vel += dt * force / density[:, None]
