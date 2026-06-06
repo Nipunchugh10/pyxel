@@ -3,7 +3,6 @@ Scientific & Simulation Patterns (91–100)
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
 import sys
 import os
@@ -819,12 +818,7 @@ class FluidDynamicsRenderer(BasePattern):
             pressure = k * (density - rho0)
             # Forces
             r_dist = np.sqrt(r2 + 1e-12)
-            # Pressure force
-            p_term = (pressure[:, None] + pressure[None, :]) / (2.0 * density[None, :])
-            f_press_mag = spiky_coeff * mass * p_term * np.where(
-                mask & (r_dist > 1e-6)[:, :, None] if False else mask,
-                ((h - r_dist)**2)[:, :, None], 0.0) if False else np.zeros((N, N, 1))
-            # Simplified force computation for performance
+            # Per-particle force computation
             force = np.zeros((N, 2))
             for i in range(N):
                 neighbours = np.where(mask[i] & (r_dist[i] > 1e-6))[0]
@@ -941,13 +935,6 @@ class QuantumWaveRenderer(BasePattern):
             V = np.where((x > -1) & (x < 1), -V_height, 0.0)
         elif pot_type == "harmonic":
             V = 0.5 * V_height * x**2 / L**2
-        elif pot_type == "double_slit":
-            wall = (x > 0) & (x < 0.3)
-            slit1 = (x > 0) & (x < 0.3) & (np.abs(x - 0.0) > 0.6) if False else np.zeros(Nx, bool)
-            # Double barrier with gaps
-            V = np.where(wall, V_height, 0.0)
-            gap1 = np.abs(x - 0.15) < 0.05  # centre of barrier region
-            V[gap1] = 0.0
         else:
             V = np.where((x > 0) & (x < 0.5), V_height, 0.0)
         # Split-step operators
