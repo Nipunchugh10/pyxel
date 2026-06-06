@@ -435,51 +435,587 @@ class BoidsFlockingRenderer(BasePattern):
             w.FloatSlider(value=1.0, min=0.0, max=4.0, step=0.2,   description="coh_weight"),
         ]
 
-# ─────────────────────────────────────────────────────────────────────────────────
-# Remaining stubs
-# ─────────────────────────────────────────────────────────────────────────────────
-class _StubMixin:
-    """Shared stub render logic."""
-    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        fig, ax = plt.subplots(figsize=(6, 6), facecolor="#0f0f0f")
-        ax.set_facecolor("#0f0f0f")
-        rect = patches.FancyBboxPatch((0.1, 0.1), 0.8, 0.8,
-                                       boxstyle="round,pad=0.05",
-                                       linewidth=2, edgecolor="#555",
-                                       facecolor="#1a1a2e")
-        ax.add_patch(rect)
-        ax.text(0.5, 0.55, self.name, ha="center", va="center",
-                fontsize=14, color="#e0e0e0", fontweight="bold",
-                transform=ax.transAxes)
-        ax.text(0.5, 0.42, "Coming Soon", ha="center", va="center",
-                fontsize=11, color="#888", style="italic",
-                transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis("off")
+
+class TrafficFlowRenderer(BasePattern):
+    """96 — Traffic Flow Simulation (Nagel-Schreckenberg model)"""
+    name  = "Traffic Flow Simulation"
+    group = "Scientific & Simulation"
+
+    def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
+               road_length=200, n_cars=50, v_max=5, p_slow=0.3,
+               n_steps=150, seed=42, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cmap = LinearSegmentedColormap.from_list(
+            "traffic", ["#000000", cols[1], cols[2], cols[3]], N=256)
+        rng = np.random.default_rng(int(seed))
+        L       = max(50, int(road_length))
+        N_cars  = min(int(n_cars), L - 1)
+        Vmax    = max(1, int(v_max))
+        p       = float(p_slow)
+        steps   = max(20, int(n_steps))
+        # Initialize: place cars randomly on circular road
+        positions = np.sort(rng.choice(L, N_cars, replace=False))
+        velocities = rng.integers(0, Vmax + 1, N_cars)
+        # Space-time diagram: rows = time, cols = road cells
+        # Value = velocity of car at that cell (0 = empty → -1)
+        spacetime = np.full((steps, L), -1, dtype=np.int8)
+        for t in range(steps):
+            # Record current state
+            spacetime[t, positions] = velocities
+            # NaSch update rules (parallel update)
+            # 1) Acceleration: v = min(v+1, Vmax)
+            velocities = np.minimum(velocities + 1, Vmax)
+            # 2) Braking: compute gap to next car (circular)
+            sorted_idx = np.argsort(positions)
+            pos_sorted = positions[sorted_idx]
+            vel_sorted = velocities[sorted_idx]
+            gaps = np.empty(N_cars, dtype=np.int64)
+            gaps[:-1] = pos_sorted[1:] - pos_sorted[:-1] - 1
+            gaps[-1]  = (pos_sorted[0] + L) - pos_sorted[-1] - 1
+            vel_sorted = np.minimum(vel_sorted, gaps)
+            # 3) Randomization: with probability p, v = max(v-1, 0)
+            rand_mask = rng.uniform(0, 1, N_cars) < p
+            vel_sorted = np.where(rand_mask, np.maximum(vel_sorted - 1, 0), vel_sorted)
+            # 4) Movement
+            pos_sorted = (pos_sorted + vel_sorted) % L
+            # Unsort back
+            inv_idx = np.empty_like(sorted_idx)
+            inv_idx[sorted_idx] = np.arange(N_cars)
+            positions  = pos_sorted[inv_idx]
+            velocities = vel_sorted[inv_idx]
+        # Visualization: space-time diagram
+        display_data = np.where(spacetime >= 0, spacetime.astype(np.float32) / Vmax, np.nan)
+        fig, ax = plt.subplots(figsize=(10, 6), facecolor=cols[0])
+        ax.set_facecolor(cols[0])
+        # Plot occupied cells as colored markers
+        t_coords, x_coords = np.where(spacetime >= 0)
+        v_vals = spacetime[spacetime >= 0].astype(np.float32) / Vmax
+        ax.scatter(x_coords, t_coords, c=v_vals, cmap=cmap, s=1.2,
+                   marker='s', linewidths=0, alpha=0.9, vmin=0, vmax=1)
+        ax.set_xlim(0, L)
+        ax.set_ylim(steps, 0)
+        ax.set_xlabel("Road position (cells)", color=cols[2], fontsize=9)
+        ax.set_ylabel("Time step", color=cols[2], fontsize=9)
+        ax.tick_params(colors=cols[2])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(cols[1])
+        # Colorbar
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(0, Vmax))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, fraction=0.03, pad=0.02)
+        cbar.set_label("Velocity", color=cols[2], fontsize=9)
+        cbar.ax.yaxis.set_tick_params(color=cols[2])
+        plt.setp(cbar.ax.yaxis.get_ticklabels(), color=cols[2])
+        cbar.outline.set_edgecolor(cols[1])
+        density_val = N_cars / L
+        avg_flow = np.mean(spacetime[spacetime >= 0])
+        ax.set_title(
+            f"Traffic Flow (Nagel-Schreckenberg)  |  L={L}  N={N_cars}  "
+            f"ρ={density_val:.2f}  Vmax={Vmax}  p={p:.2f}",
+            color=cols[3], fontsize=10, fontweight="bold", pad=8)
         plt.tight_layout()
+        self._fig = fig
         plt.show()
         plt.close(fig)
 
     def get_controls(self):
-        return []
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=200, min=50, max=500, step=10,       description="road_length"),
+            w.IntSlider(value=50,  min=10, max=200, step=5,        description="n_cars"),
+            w.IntSlider(value=5,   min=1,  max=10,  step=1,        description="v_max"),
+            w.FloatSlider(value=0.3, min=0.0, max=0.8, step=0.05,  description="p_slow"),
+            w.IntSlider(value=150, min=20, max=300, step=10,       description="n_steps"),
+            w.IntSlider(value=42,  min=0,  max=999, step=1,        description="seed"),
+        ]
 
-class TrafficFlowRenderer(_StubMixin, BasePattern):
-    name = "Traffic Flow Simulation"
+class EcosystemRenderer(BasePattern):
+    """97 — Ecosystem Predator-Prey (Lotka-Volterra)"""
+    name  = "Ecosystem Predator-Prey"
     group = "Scientific & Simulation"
 
-class EcosystemRenderer(_StubMixin, BasePattern):
-    name = "Ecosystem Predator-Prey"
+    def render(self, resolution="Low", palette="Forest", speed=1.0,
+               alpha=1.1, beta=0.4, delta=0.1, gamma=0.4,
+               prey_0=10.0, pred_0=5.0, t_max=50.0, seed=0, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Forest"])
+        a, b, d, g = float(alpha), float(beta), float(delta), float(gamma)
+        x0, y0 = float(prey_0), float(pred_0)
+        T = float(t_max)
+        # RK4 integration of Lotka-Volterra
+        dt = 0.01
+        N_pts = int(T / dt)
+        t_arr = np.linspace(0, T, N_pts)
+        x = np.empty(N_pts)
+        y = np.empty(N_pts)
+        x[0], y[0] = x0, y0
+        def deriv(xi, yi):
+            dx = a * xi - b * xi * yi
+            dy = d * xi * yi - g * yi
+            return dx, dy
+        for i in range(N_pts - 1):
+            k1x, k1y = deriv(x[i], y[i])
+            k2x, k2y = deriv(x[i]+dt/2*k1x, y[i]+dt/2*k1y)
+            k3x, k3y = deriv(x[i]+dt/2*k2x, y[i]+dt/2*k2y)
+            k4x, k4y = deriv(x[i]+dt*k3x, y[i]+dt*k3y)
+            x[i+1] = max(0, x[i] + dt/6*(k1x + 2*k2x + 2*k3x + k4x))
+            y[i+1] = max(0, y[i] + dt/6*(k1y + 2*k2y + 2*k3y + k4y))
+        # Dual plot: time series + phase portrait
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5), facecolor=cols[0])
+        for ax in (ax1, ax2):
+            ax.set_facecolor(cols[0])
+            ax.tick_params(colors=cols[2])
+            for spine in ax.spines.values():
+                spine.set_edgecolor(cols[1])
+        # Time series
+        ax1.plot(t_arr, x, color=cols[2], linewidth=1.5, label="Prey")
+        ax1.plot(t_arr, y, color=cols[3], linewidth=1.5, label="Predator")
+        ax1.fill_between(t_arr, 0, x, color=cols[2], alpha=0.1)
+        ax1.fill_between(t_arr, 0, y, color=cols[3], alpha=0.1)
+        ax1.set_xlabel("Time", color=cols[2], fontsize=9)
+        ax1.set_ylabel("Population", color=cols[2], fontsize=9)
+        ax1.legend(loc="upper right", fontsize=8, framealpha=0.5,
+                   labelcolor=cols[3])
+        ax1.set_title("Population Dynamics", color=cols[3], fontsize=10, fontweight="bold")
+        # Phase portrait
+        ax2.plot(x, y, color=cols[2], linewidth=0.8, alpha=0.8)
+        ax2.scatter([x[0]], [y[0]], color=cols[3], s=60, zorder=5,
+                    marker='o', label="Start")
+        ax2.scatter([x[-1]], [y[-1]], color=cols[2], s=60, zorder=5,
+                    marker='s', label="End")
+        # Add nullclines
+        x_range = np.linspace(0.01, x.max()*1.2, 100)
+        ax2.axhline(a/b, color=cols[3], linestyle='--', alpha=0.4, linewidth=0.8)
+        ax2.axvline(g/d, color=cols[2], linestyle='--', alpha=0.4, linewidth=0.8)
+        ax2.set_xlabel("Prey population", color=cols[2], fontsize=9)
+        ax2.set_ylabel("Predator population", color=cols[2], fontsize=9)
+        ax2.legend(loc="upper right", fontsize=8, framealpha=0.5,
+                   labelcolor=cols[3])
+        ax2.set_title("Phase Portrait", color=cols[3], fontsize=10, fontweight="bold")
+        fig.suptitle(
+            f"Lotka-Volterra Predator-Prey  |  α={a:.1f}  β={b:.1f}  δ={d:.2f}  γ={g:.1f}",
+            color=cols[3], fontsize=11, fontweight="bold", y=0.98)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=1.1, min=0.1, max=3.0, step=0.1,  description="alpha"),
+            w.FloatSlider(value=0.4, min=0.05, max=1.5, step=0.05, description="beta"),
+            w.FloatSlider(value=0.1, min=0.01, max=0.5, step=0.01, description="delta"),
+            w.FloatSlider(value=0.4, min=0.05, max=1.5, step=0.05, description="gamma"),
+            w.FloatSlider(value=10.0, min=1.0, max=50.0, step=1.0, description="prey_0"),
+            w.FloatSlider(value=5.0,  min=1.0, max=30.0, step=1.0, description="pred_0"),
+            w.FloatSlider(value=50.0, min=10.0, max=200.0, step=10.0, description="t_max"),
+        ]
+
+class AntColonyRenderer(BasePattern):
+    """98 — Ant Colony Optimization (TSP)"""
+    name  = "Ant Colony Optimization"
     group = "Scientific & Simulation"
 
-class AntColonyRenderer(_StubMixin, BasePattern):
-    name = "Ant Colony Optimization"
+    def render(self, resolution="Low", palette="Lava Flow", speed=1.0,
+               n_cities=25, n_ants=30, n_iterations=80, alpha_aco=1.0,
+               beta_aco=3.0, evaporation=0.5, seed=42, **kwargs):
+        from matplotlib.collections import LineCollection
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Lava Flow"])
+        cmap_pher = LinearSegmentedColormap.from_list(
+            "pher", ["#000000", cols[1], cols[2], cols[3]], N=256)
+        rng = np.random.default_rng(int(seed))
+        NC     = max(5, int(n_cities))
+        N_ants = max(5, int(n_ants))
+        iters  = max(5, int(n_iterations))
+        a_exp  = float(alpha_aco)
+        b_exp  = float(beta_aco)
+        rho    = float(evaporation)
+        # City positions
+        cities = rng.uniform(0.05, 0.95, (NC, 2))
+        # Distance matrix
+        diff = cities[:, None, :] - cities[None, :, :]
+        dist = np.sqrt((diff**2).sum(axis=2))
+        np.fill_diagonal(dist, 1e-12)
+        # Pheromone matrix
+        pheromone = np.ones((NC, NC))
+        eta = 1.0 / dist  # heuristic (inverse distance)
+        best_tour = None
+        best_length = np.inf
+        for iteration in range(iters):
+            tours = []
+            lengths = []
+            for _ in range(N_ants):
+                visited = [rng.integers(0, NC)]
+                for _ in range(NC - 1):
+                    curr = visited[-1]
+                    unvisited = [j for j in range(NC) if j not in visited]
+                    probs = np.array([
+                        (pheromone[curr, j] ** a_exp) * (eta[curr, j] ** b_exp)
+                        for j in unvisited
+                    ])
+                    probs /= probs.sum()
+                    next_city = unvisited[rng.choice(len(unvisited), p=probs)]
+                    visited.append(next_city)
+                tours.append(visited)
+                length = sum(dist[visited[i], visited[(i+1) % NC]] for i in range(NC))
+                lengths.append(length)
+                if length < best_length:
+                    best_length = length
+                    best_tour = visited[:]
+            # Evaporation
+            pheromone *= (1 - rho)
+            # Deposit
+            for tour, length in zip(tours, lengths):
+                deposit = 1.0 / length
+                for i in range(NC):
+                    a_c, b_c = tour[i], tour[(i+1) % NC]
+                    pheromone[a_c, b_c] += deposit
+                    pheromone[b_c, a_c] += deposit
+        # Visualization
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor=cols[0])
+        ax.set_facecolor(cols[0])
+        ax.set_aspect("equal")
+        # Draw pheromone trails (all edges with significant pheromone)
+        segs, seg_colors = [], []
+        pmax = pheromone.max()
+        for i in range(NC):
+            for j in range(i+1, NC):
+                strength = pheromone[i, j] / pmax
+                if strength > 0.05:
+                    segs.append([cities[i], cities[j]])
+                    seg_colors.append((*plt.cm.colors.to_rgba(
+                        cmap_pher(strength))[:3], strength * 0.7))
+        if segs:
+            lc = LineCollection(segs, colors=seg_colors,
+                                linewidths=[c[3]*3 for c in seg_colors], zorder=1)
+            ax.add_collection(lc)
+        # Draw best tour
+        if best_tour is not None:
+            tour_pts = cities[best_tour + [best_tour[0]]]
+            ax.plot(tour_pts[:, 0], tour_pts[:, 1], color=cols[3],
+                    linewidth=2.5, alpha=0.9, zorder=3)
+        # Draw cities
+        ax.scatter(cities[:, 0], cities[:, 1], s=80, color=cols[2],
+                   edgecolors=cols[3], linewidths=1.5, zorder=4)
+        for i, (cx, cy) in enumerate(cities):
+            ax.text(cx, cy + 0.025, str(i), ha="center", va="bottom",
+                    fontsize=7, color=cols[3], fontweight="bold", zorder=5)
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(cols[1])
+        ax.set_title(
+            f"Ant Colony Optimization (TSP)  |  {NC} cities  |  "
+            f"best={best_length:.2f}  |  {iters} iters × {N_ants} ants",
+            color=cols[3], fontsize=10, fontweight="bold", pad=8)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=25, min=5,  max=50,  step=1,         description="n_cities"),
+            w.IntSlider(value=30, min=5,  max=100, step=5,         description="n_ants"),
+            w.IntSlider(value=80, min=10, max=200, step=10,        description="n_iterations"),
+            w.FloatSlider(value=1.0, min=0.5, max=3.0, step=0.1,  description="alpha_aco"),
+            w.FloatSlider(value=3.0, min=1.0, max=6.0, step=0.5,  description="beta_aco"),
+            w.FloatSlider(value=0.5, min=0.1, max=0.9, step=0.1,  description="evaporation"),
+            w.IntSlider(value=42, min=0, max=999, step=1,          description="seed"),
+        ]
+
+class FluidDynamicsRenderer(BasePattern):
+    """99 — Fluid Dynamics (Smoothed Particle Hydrodynamics)"""
+    name  = "Fluid Dynamics (SPH)"
     group = "Scientific & Simulation"
 
-class FluidDynamicsRenderer(_StubMixin, BasePattern):
-    name = "Fluid Dynamics (SPH)"
+    def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
+               n_particles=300, n_steps=60, gravity=9.8, viscosity=0.02,
+               rest_density=1000.0, gas_const=2000.0, seed=7, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cmap = LinearSegmentedColormap.from_list(
+            "sph", [cols[0], cols[1], cols[2], cols[3]], N=256)
+        rng = np.random.default_rng(int(seed))
+        N = max(50, int(n_particles))
+        steps = max(10, int(n_steps))
+        g_val = float(gravity)
+        mu = float(viscosity)
+        rho0 = float(rest_density)
+        k = float(gas_const)
+        # SPH parameters
+        h = 0.04  # smoothing radius
+        mass = 1.0
+        dt = 0.0008
+        # Initialize: block of fluid in upper-left quadrant
+        side = int(np.ceil(np.sqrt(N)))
+        spacing = 0.015
+        pos = []
+        for i in range(side):
+            for j in range(side):
+                if len(pos) >= N:
+                    break
+                pos.append([0.15 + i * spacing + rng.uniform(-0.001, 0.001),
+                            0.5 + j * spacing + rng.uniform(-0.001, 0.001)])
+        pos = np.array(pos[:N])
+        vel = np.zeros((N, 2))
+        # SPH kernels (poly6 for density, spiky for pressure, viscosity)
+        h2 = h * h
+        poly6_coeff = 315.0 / (64.0 * np.pi * h**9)
+        spiky_coeff = -45.0 / (np.pi * h**6)
+        visc_coeff  = 45.0 / (np.pi * h**6)
+        for step in range(steps):
+            # Compute densities
+            diff = pos[:, None, :] - pos[None, :, :]  # (N, N, 2)
+            r2 = (diff**2).sum(axis=2)  # (N, N)
+            mask = r2 < h2
+            density = mass * poly6_coeff * np.where(mask, (h2 - r2)**3, 0.0).sum(axis=1)
+            density = np.maximum(density, rho0 * 0.1)
+            # Pressure
+            pressure = k * (density - rho0)
+            # Forces
+            r_dist = np.sqrt(r2 + 1e-12)
+            # Pressure force
+            p_term = (pressure[:, None] + pressure[None, :]) / (2.0 * density[None, :])
+            f_press_mag = spiky_coeff * mass * p_term * np.where(
+                mask & (r_dist > 1e-6)[:, :, None] if False else mask,
+                ((h - r_dist)**2)[:, :, None], 0.0) if False else np.zeros((N, N, 1))
+            # Simplified force computation for performance
+            force = np.zeros((N, 2))
+            for i in range(N):
+                neighbours = np.where(mask[i] & (r_dist[i] > 1e-6))[0]
+                if len(neighbours) == 0:
+                    continue
+                rij = diff[i, neighbours]  # (K, 2)
+                dij = r_dist[i, neighbours]  # (K,)
+                # Pressure force (spiky gradient)
+                p_avg = (pressure[i] + pressure[neighbours]) / (2.0 * density[neighbours])
+                w_spiky = spiky_coeff * (h - dij)**2
+                f_p = (p_avg * w_spiky)[:, None] * (rij / dij[:, None])
+                force[i] += mass * f_p.sum(axis=0)
+                # Viscosity force
+                v_diff = vel[neighbours] - vel[i]
+                w_visc = visc_coeff * (h - dij)
+                f_v = mu * mass * (v_diff * w_visc[:, None]) / density[neighbours, None]
+                force[i] += f_v.sum(axis=0)
+            # Gravity
+            force[:, 1] -= g_val * density
+            # Integration (symplectic Euler)
+            vel += dt * force / density[:, None]
+            pos += dt * vel
+            # Boundary conditions (box: [0,1] x [0,1])
+            for dim in range(2):
+                below = pos[:, dim] < 0.02
+                above = pos[:, dim] > 0.98
+                pos[below, dim] = 0.02
+                pos[above, dim] = 0.98
+                vel[below, dim] *= -0.3
+                vel[above, dim] *= -0.3
+        # Visualization
+        fig, ax = plt.subplots(figsize=(8, 8), facecolor=cols[0])
+        ax.set_facecolor(cols[0])
+        ax.set_aspect("equal")
+        # Color by density
+        rho_norm = (density - density.min()) / (density.max() - density.min() + 1e-9)
+        speed_val = np.linalg.norm(vel, axis=1)
+        color_val = 0.6 * rho_norm + 0.4 * speed_val / (speed_val.max() + 1e-9)
+        ax.scatter(pos[:, 0], pos[:, 1], c=color_val, cmap=cmap,
+                   s=35, alpha=0.85, linewidths=0, vmin=0, vmax=1, zorder=3)
+        # Draw container
+        rect = plt.Rectangle((0.02, 0.02), 0.96, 0.96, fill=False,
+                              edgecolor=cols[2], linewidth=1.5, zorder=5)
+        ax.add_patch(rect)
+        ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.set_xticks([]); ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(cols[1])
+        ax.set_title(
+            f"Fluid Dynamics (SPH)  |  N={N}  |  {steps} steps  |  "
+            f"g={g_val:.1f}  μ={mu:.3f}  k={k:.0f}",
+            color=cols[3], fontsize=10, fontweight="bold", pad=8)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.IntSlider(value=300, min=50, max=600, step=50,          description="n_particles"),
+            w.IntSlider(value=60,  min=10, max=150, step=10,          description="n_steps"),
+            w.FloatSlider(value=9.8, min=0.0, max=20.0, step=0.5,    description="gravity"),
+            w.FloatSlider(value=0.02, min=0.0, max=0.1, step=0.005,  description="viscosity"),
+            w.FloatSlider(value=1000.0, min=100, max=3000, step=100,  description="rest_density"),
+            w.FloatSlider(value=2000.0, min=500, max=5000, step=250,  description="gas_const"),
+            w.IntSlider(value=7, min=0, max=999, step=1,              description="seed"),
+        ]
+
+class QuantumWaveRenderer(BasePattern):
+    """100 — Quantum Wave Packet (Split-Step Fourier Method)"""
+    name  = "Quantum Wave Packet"
     group = "Scientific & Simulation"
 
-class QuantumWaveRenderer(_StubMixin, BasePattern):
-    name = "Quantum Wave Packet"
-    group = "Scientific & Simulation"
+    def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
+               x0=-3.0, k0=5.0, sigma=0.5, n_steps=200,
+               potential="barrier", barrier_height=8.0, seed=0, **kwargs):
+        from matplotlib.colors import LinearSegmentedColormap
+        PALETTES = {
+            "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+            "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+            "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+            "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+            "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap = LinearSegmentedColormap.from_list(
+            "qm", [cols[0], cols[1], cols[2], cols[3]], N=256)
+        # Grid setup
+        Nx = {"Low": 512, "Medium": 1024, "High": 2048}.get(resolution, 512)
+        L = 12.0  # domain half-width
+        x = np.linspace(-L, L, Nx)
+        dx = x[1] - x[0]
+        dk = 2 * np.pi / (Nx * dx)
+        k_arr = np.fft.fftfreq(Nx, d=dx) * 2 * np.pi
+        # Time step
+        dt = 0.005
+        steps = max(10, int(n_steps))
+        # Initial Gaussian wave packet
+        x_0 = float(x0)
+        k_0 = float(k0)
+        sig = float(sigma)
+        psi = (2 * np.pi * sig**2)**(-0.25) * np.exp(
+            -(x - x_0)**2 / (4 * sig**2) + 1j * k_0 * x)
+        # Potential
+        pot_type = str(potential).lower()
+        V_height = float(barrier_height)
+        if pot_type == "barrier":
+            V = np.where((x > 0) & (x < 0.5), V_height, 0.0)
+        elif pot_type == "well":
+            V = np.where((x > -1) & (x < 1), -V_height, 0.0)
+        elif pot_type == "harmonic":
+            V = 0.5 * V_height * x**2 / L**2
+        elif pot_type == "double_slit":
+            wall = (x > 0) & (x < 0.3)
+            slit1 = (x > 0) & (x < 0.3) & (np.abs(x - 0.0) > 0.6) if False else np.zeros(Nx, bool)
+            # Double barrier with gaps
+            V = np.where(wall, V_height, 0.0)
+            gap1 = np.abs(x - 0.15) < 0.05  # centre of barrier region
+            V[gap1] = 0.0
+        else:
+            V = np.where((x > 0) & (x < 0.5), V_height, 0.0)
+        # Split-step operators
+        exp_V_half = np.exp(-0.5j * V * dt)
+        exp_T = np.exp(-0.5j * k_arr**2 * dt)  # ħ=1, m=1
+        # Store snapshots for space-time plot
+        n_snapshots = min(steps, 100)
+        snap_interval = max(1, steps // n_snapshots)
+        snapshots = []
+        psi_init = np.abs(psi)**2
+        for step in range(steps):
+            # Split-step Fourier
+            psi = exp_V_half * psi
+            psi = np.fft.ifft(exp_T * np.fft.fft(psi))
+            psi = exp_V_half * psi
+            if step % snap_interval == 0:
+                snapshots.append(np.abs(psi)**2)
+        snapshots.append(np.abs(psi)**2)
+        # Build space-time image
+        st_image = np.array(snapshots)  # (T, Nx)
+        # Visualization
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), facecolor=cols[0],
+                                        gridspec_kw={'height_ratios': [1, 1.5]})
+        for ax in (ax1, ax2):
+            ax.set_facecolor(cols[0])
+            ax.tick_params(colors=cols[2])
+            for spine in ax.spines.values():
+                spine.set_edgecolor(cols[1])
+        # Top: final |ψ|² with potential overlay
+        prob = np.abs(psi)**2
+        ax1.fill_between(x, 0, prob, color=cols[2], alpha=0.6)
+        ax1.plot(x, prob, color=cols[3], linewidth=1.5, label=r"$|\psi|^2$ (final)")
+        ax1.plot(x, psi_init, color=cols[1], linewidth=1.0, alpha=0.5,
+                 linestyle='--', label=r"$|\psi|^2$ (initial)")
+        # Scale potential for display
+        v_scale = prob.max() / (V.max() + 1e-9) * 0.4 if V.max() > 0 else 0
+        ax1.fill_between(x, 0, V * v_scale, color=cols[1], alpha=0.3, label="V(x)")
+        ax1.set_xlim(-L, L)
+        ax1.set_ylim(0, prob.max() * 1.3)
+        ax1.set_xlabel("x", color=cols[2], fontsize=9)
+        ax1.set_ylabel(r"$|\psi(x)|^2$", color=cols[2], fontsize=9)
+        ax1.legend(loc="upper right", fontsize=8, framealpha=0.5, labelcolor=cols[3])
+        ax1.set_title("Quantum Wave Packet — Probability Density",
+                      color=cols[3], fontsize=10, fontweight="bold")
+        # Bottom: space-time diagram
+        extent = [-L, L, steps * dt, 0]
+        ax2.imshow(st_image, aspect='auto', extent=extent, cmap=cmap,
+                   interpolation='bilinear', vmin=0, vmax=st_image.max())
+        ax2.set_xlabel("x", color=cols[2], fontsize=9)
+        ax2.set_ylabel("Time", color=cols[2], fontsize=9)
+        ax2.set_title("Space-Time Evolution", color=cols[3], fontsize=10, fontweight="bold")
+        fig.suptitle(
+            f"Quantum Wave Packet  |  k₀={k_0:.1f}  σ={sig:.2f}  "
+            f"V={pot_type}  h={V_height:.1f}  |  {steps} steps",
+            color=cols[3], fontsize=11, fontweight="bold", y=0.99)
+        plt.tight_layout()
+        self._fig = fig
+        plt.show()
+        plt.close(fig)
+
+    def get_controls(self):
+        import ipywidgets as w
+        return [
+            w.FloatSlider(value=-3.0, min=-8.0, max=0.0, step=0.5,   description="x0"),
+            w.FloatSlider(value=5.0,  min=1.0,  max=15.0, step=0.5,  description="k0"),
+            w.FloatSlider(value=0.5,  min=0.2,  max=2.0, step=0.1,   description="sigma"),
+            w.IntSlider(value=200, min=50, max=500, step=25,          description="n_steps"),
+            w.Dropdown(options=["barrier","well","harmonic"],
+                       value="barrier", description="potential"),
+            w.FloatSlider(value=8.0, min=1.0, max=20.0, step=1.0,    description="barrier_height"),
+        ]
