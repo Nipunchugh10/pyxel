@@ -2,8 +2,8 @@
 
 ### 100 Stunning 2D & 3D Patterns in a Single Jupyter Notebook
 
-> **This project is currently under active development.**
-> The engine, UI, and architecture are complete. Pattern implementations are being added progressively.
+> **All 100 patterns are now complete!**
+> The engine, UI, architecture, and all pattern implementations are finished.
 
 ---
 
@@ -23,7 +23,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Core engine (`BasePattern`, color palettes, export utilities) | Complete |
 | 100 pattern class stubs registered | Complete |
 | Interactive UI (dropdowns, controls, render/export buttons) | Complete |
-| Pattern implementations | **95 / 100** — in progress |
+| Pattern implementations | **100 / 100** ✅ Complete |
 
 **Progress by group:**
 
@@ -34,7 +34,7 @@ This is **not** a collection of 100 disconnected scripts. It is **Pyxel Canvas**
 | Abstract & Artistic (41–60) | 20 | 20 ✅ |
 | 2D Game-Style (61–70) | 10 | 10 ✅ |
 | 3D Objects & Sculptures (71–90) | 20 | 20 ✅ |
-| Scientific & Simulation (91–100) | 5 | 10 |
+| Scientific & Simulation (91–100) | 10 | 10 ✅ |
 
 ---
 
