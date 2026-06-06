@@ -100,6 +100,80 @@ class NeuralNetworkVizRenderer(BasePattern):
                         step=1,                   description="activation_seed"),
         ]
 
+    def animate(self, n_frames=30, fps=6, palette="Neon Cyberpunk",
+                layer_sizes="4,6,6,4,2", activation_seed=42, **kwargs):
+        """Animate activation signal propagating through layers."""
+        from matplotlib.colors import LinearSegmentedColormap
+        from matplotlib.collections import LineCollection
+        from engines.animation import capture_frame
+        PALETTES = {
+            "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+            "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+        }
+        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cmap_act = LinearSegmentedColormap.from_list("act", cols, N=256)
+        try:
+            layers = [max(1, int(x.strip())) for x in str(layer_sizes).split(",")]
+        except Exception:
+            layers = [4, 6, 6, 4, 2]
+        layers = layers[:8]
+        rng = np.random.default_rng(int(activation_seed))
+        n_layers = len(layers)
+        x_positions = np.linspace(0.1, 0.9, n_layers)
+        max_nodes = max(layers)
+        node_pos = []
+        for li, n in enumerate(layers):
+            xs = np.full(n, x_positions[li])
+            ys = np.linspace(0.5 - (n-1)*0.07, 0.5 + (n-1)*0.07, n)
+            node_pos.append(np.column_stack([xs, ys]))
+        # Pre-generate activations for multiple forward passes
+        all_acts = []
+        for _ in range(n_frames):
+            acts = [rng.uniform(0.05, 0.95, n) for n in layers]
+            all_acts.append(acts)
+        # Pre-generate weights
+        weights = []
+        for li in range(n_layers - 1):
+            w_mat = rng.uniform(-1.0, 1.0, (layers[li], layers[li+1]))
+            weights.append(w_mat)
+        node_r = max(0.012, min(0.018, 0.6 / (max_nodes * 8)))
+        frames = []
+        for f_idx in range(n_frames):
+            # Which layer is "active" (signal propagating)
+            active_layer = f_idx % n_layers
+            fig, ax = plt.subplots(figsize=(8, 6), facecolor="#07050f")
+            ax.set_facecolor("#07050f"); ax.set_aspect("equal"); ax.axis("off")
+            # Draw weights
+            for li in range(n_layers - 1):
+                segs, colors_w = [], []
+                for pi, (px, py) in enumerate(node_pos[li]):
+                    for qi, (qx, qy) in enumerate(node_pos[li+1]):
+                        w = weights[li][pi, qi]
+                        segs.append([(px, py), (qx, qy)])
+                        bright = 1.0 if li == active_layer else 0.3
+                        if w >= 0:
+                            c = cmap_act(0.3 + 0.5 * w)
+                        else:
+                            c = (*plt.cm.cool(0.3 - 0.3*w)[:3], 0.3)
+                        colors_w.append((*c[:3], abs(w) * 0.55 * bright + 0.05))
+                ax.add_collection(LineCollection(segs, colors=colors_w, linewidths=0.7, zorder=1))
+            # Draw nodes
+            acts = all_acts[f_idx]
+            for li, (positions, activations) in enumerate(zip(node_pos, acts)):
+                glow = 1.0 if li <= active_layer else 0.15
+                for (px, py), act in zip(positions, activations):
+                    ax.add_patch(plt.Circle((px, py), node_r*2.2,
+                                            color=cmap_act(act * glow), alpha=0.12 * glow, zorder=2))
+                    ax.add_patch(plt.Circle((px, py), node_r,
+                                            color=cmap_act(act * glow), alpha=glow, zorder=3))
+            ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+            ax.set_title(f"Neural Network | signal at layer {active_layer+1}/{n_layers}",
+                        color=cols[3], fontsize=9, pad=4)
+            plt.tight_layout()
+            frames.append(capture_frame(fig))
+            plt.close(fig)
+        return frames
+
 # ─────────────────────────────────────────────────────────────────────────────────
 # 92 — Atom Orbital Simulator
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -187,6 +261,67 @@ class AtomOrbitalRenderer(BasePattern):
             w.Dropdown(options=["xz","xy","yz"], value="xz", description="view_plane"),
         ]
 
+    def animate(self, n_frames=30, fps=4, palette="Ocean Depths",
+                view_plane="xz", **kwargs):
+        """Animate by cycling through all valid (n, l, m) quantum states."""
+        from scipy.special import sph_harm, assoc_laguerre
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        cols = ["#0a1628", "#0066cc", "#00ccff", "#80ffee"]
+        cmap = LinearSegmentedColormap.from_list("orb", cols, N=512)
+        # Build list of all (n, l, m) states for n=1..4
+        states = []
+        for n in range(1, 5):
+            for l in range(n):
+                for m in range(-l, l+1):
+                    states.append((n, l, m))
+        # Trim or repeat to fill n_frames
+        if len(states) > n_frames:
+            states = states[:n_frames]
+        elif len(states) < n_frames:
+            repeats = (n_frames // len(states)) + 1
+            states = (states * repeats)[:n_frames]
+        vp = str(view_plane).lower()
+        frames = []
+        for n, l, m in states:
+            G = 100
+            lim = 20 * n
+            ax_vals = np.linspace(-lim, lim, G)
+            A, B = np.meshgrid(ax_vals, ax_vals)
+            if vp == "xy":
+                X, Y, Z = A, B, np.zeros_like(A)
+            elif vp == "yz":
+                X, Y, Z = np.zeros_like(A), A, B
+            else:
+                X, Y, Z = A, np.zeros_like(A), B
+            r = np.sqrt(X**2 + Y**2 + Z**2) + 1e-12
+            theta = np.arccos(np.clip(Z / r, -1, 1))
+            phi = np.arctan2(Y, X)
+            rho = 2 * r / n
+            deg = n - l - 1
+            if deg < 0:
+                R = np.zeros_like(rho)
+            else:
+                L_val = assoc_laguerre(rho, deg, 2*l+1)
+                R = np.exp(-rho/2) * (rho**l) * L_val
+            Y_lm = (np.real(sph_harm(m, l, phi, theta)) if m >= 0
+                    else np.imag(sph_harm(abs(m), l, phi, theta)))
+            psi2 = (R * Y_lm)**2
+            pmax = psi2.max()
+            if pmax > 0:
+                psi2 /= pmax
+            fig, ax = plt.subplots(figsize=(6, 6), facecolor="#050a14")
+            ax.set_facecolor("#050a14")
+            ax.imshow(psi2, origin="lower", extent=[-lim, lim, -lim, lim],
+                      cmap=cmap, interpolation="bilinear", vmin=0, vmax=1)
+            ax.set_xticks([]); ax.set_yticks([])
+            ax.set_title(f"n={n}  l={l}  m={m}  |  {vp.upper()} plane",
+                        color=cols[3], fontsize=10, fontweight="bold", pad=4)
+            plt.tight_layout()
+            frames.append(capture_frame(fig))
+            plt.close(fig)
+        return frames
+
 # ─────────────────────────────────────────────────────────────────────────────────
 # 93 — Black Hole Lensing
 # ─────────────────────────────────────────────────────────────────────────────────
@@ -267,6 +402,71 @@ class BlackHoleLensingRenderer(BasePattern):
             w.IntSlider(value=400, min=100, max=800, step=50,     description="n_stars"),
             w.Checkbox(value=True,                                 description="show_photon_sphere"),
         ]
+
+    def animate(self, n_frames=36, fps=12, palette="Inferno",
+                mass=1.0, n_rings=5, n_stars=300, star_seed=7, **kwargs):
+        """Animate the accretion disk rotating around the black hole."""
+        from matplotlib.colors import LinearSegmentedColormap
+        from engines.animation import capture_frame
+        cmap_acc = LinearSegmentedColormap.from_list(
+            "acc", ["#000000", "#200010", "#aa2200", "#ff8800", "#ffffa0"], N=512)
+        cols = ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"]
+        rng = np.random.default_rng(int(star_seed))
+        M = max(0.1, float(mass))
+        rs = 2 * M
+        view = 12 * M
+        # Pre-generate stars
+        sx = rng.uniform(-view, view, n_stars)
+        sy = rng.uniform(-view, view, n_stars)
+        visible = np.sqrt(sx**2 + sy**2) > rs * 1.1
+        sx, sy = sx[visible], sy[visible]
+        s_sizes = rng.uniform(1, 8, len(sx))
+        s_bright = rng.uniform(0.3, 1.0, len(sx))
+        # Pre-generate accretion disk (polar coords)
+        r_isco = 3 * rs
+        r_disk = np.linspace(r_isco, 6*M, 80)
+        phi_acc = np.linspace(0, 2*np.pi, 300)
+        R_acc, Phi_acc = np.meshgrid(r_disk, phi_acc)
+        base_brightness = (r_isco / R_acc)**2.5
+        base_brightness /= base_brightness.max()
+        # Source rings
+        theta_vals = np.linspace(0, 2*np.pi, 400)
+        source_radii = np.linspace(3.5*M, 10*M, n_rings)
+        frames = []
+        for f in range(n_frames):
+            rotation = 2 * np.pi * f / n_frames
+            fig, ax = plt.subplots(figsize=(6, 6), facecolor="#000000")
+            ax.set_facecolor("#000000"); ax.set_aspect("equal"); ax.axis("off")
+            # Stars
+            ax.scatter(sx, sy, s=s_sizes, c=s_bright, cmap="gray",
+                      alpha=0.7, zorder=1, linewidths=0)
+            # Lensed source rings
+            for ri, r_src in enumerate(source_radii):
+                r_app = r_src / (1 + 4*M/r_src)
+                hue = ri / max(n_rings-1, 1)
+                ax.plot(r_app*np.cos(theta_vals), r_app*np.sin(theta_vals),
+                       color=plt.cm.hsv(hue), linewidth=max(0.5, 1.5-ri*0.15),
+                       alpha=0.7, zorder=3)
+            # Rotating accretion disk
+            Phi_rot = Phi_acc + rotation
+            # Add angular brightness variation for visual motion
+            bright = base_brightness * (0.7 + 0.3 * np.cos(Phi_rot * 3 + rotation * 2))
+            ax.scatter(R_acc.ravel()*np.cos(Phi_rot.ravel()),
+                      R_acc.ravel()*np.sin(Phi_rot.ravel()),
+                      c=bright.ravel(), cmap=cmap_acc,
+                      s=0.6, alpha=0.6, zorder=2, linewidths=0, vmin=0, vmax=1)
+            # Black hole
+            ax.add_patch(plt.Circle((0, 0), rs, color="black", zorder=5))
+            ax.add_patch(plt.Circle((0, 0), 1.5*rs, fill=False,
+                                   edgecolor="#ff8800", linewidth=0.8,
+                                   linestyle="--", alpha=0.4, zorder=6))
+            ax.set_xlim(-view, view); ax.set_ylim(-view, view)
+            ax.set_title(f"Black Hole Lensing | frame {f+1}/{n_frames}",
+                        color=cols[3], fontsize=9, pad=4)
+            plt.tight_layout()
+            frames.append(capture_frame(fig))
+            plt.close(fig)
+        return frames
 
 # ─────────────────────────────────────────────────────────────────────────────────
 # 94 — Conway's Game of Life
