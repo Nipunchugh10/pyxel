@@ -30,7 +30,22 @@ def run(cmd, **kw):
     subprocess.run(cmd, check=True, **kw)
 
 
+def running_from_dist():
+    """True if a Pyxel.exe from dist/ is running: Windows locks its files, so
+    PyInstaller could not replace the folder (and would half-delete it)."""
+    if sys.platform != "win32":
+        return False
+    out = subprocess.run(
+        ["powershell", "-NoProfile", "-Command",
+         "Get-Process Pyxel -ErrorAction SilentlyContinue | ForEach-Object { $_.Path }"],
+        capture_output=True, text=True).stdout
+    return any(Path(p).resolve().is_relative_to(DIST.resolve())
+               for p in out.split() if p.strip())
+
+
 def build():
+    if running_from_dist():
+        sys.exit("Pyxel.exe from dist/ is running. Close it, then build again.")
     run([sys.executable, str(ROOT / "packaging" / "make_icon.py")])
     run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean",
          "--distpath", str(DIST), "--workpath", str(ROOT / "build"),
