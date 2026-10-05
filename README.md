@@ -22,7 +22,7 @@ This is **not** a collection of 100 disconnected scripts. It is a **visual engin
 
 ## Desktop App (Windows): no Python needed
 
-Download **`Pyxel-v1.0.0-win64.zip`** from the [Releases page](https://github.com/Nipunchugh10/pyxel/releases),
+Download the latest **`Pyxel-v<version>-win64.zip`** from the [Releases page](https://github.com/Nipunchugh10/pyxel/releases),
 unzip it anywhere and double-click **`Pyxel.exe`**. Pick a pattern, click **Render**, and the image
 appears beside its "How This Works" notes; export PNGs and GIFs to `Pictures\Pyxel`.
 

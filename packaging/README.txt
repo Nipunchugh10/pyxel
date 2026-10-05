@@ -22,6 +22,10 @@ The app is not code-signed, so Windows SmartScreen may say
 "Windows protected your PC". Click "More info", then "Run anyway".
 If Smart App Control is on, Windows may block the app entirely.
 
+If Pyxel says it "could not start", Windows may have blocked the files you
+downloaded: delete the unzipped folder, right-click the zip > Properties >
+tick "Unblock" > OK, and unzip it again.
+
 
 REQUIREMENTS
 ------------

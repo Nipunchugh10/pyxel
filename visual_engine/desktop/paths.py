@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 APP_NAME = "Pyxel"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 SOURCE_URL = "https://github.com/Nipunchugh10/pyxel"
 
 

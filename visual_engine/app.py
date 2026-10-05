@@ -24,6 +24,21 @@ def _message_box(title, text):
         print(f"{title}: {text}", file=sys.stderr)
 
 
+def _start_failure_help(exc):
+    """Explain a start-up failure without guessing: only blame WebView2 when the
+    error is actually about WebView2."""
+    detail = f"{type(exc).__name__}: {exc}"
+    if "webview2" in detail.lower() and "python.runtime" not in detail.lower():
+        return ("Pyxel needs Microsoft Edge WebView2, which is part of Windows 11 "
+                "and up-to-date Windows 10.\n\nInstall the free \"Evergreen Runtime\" "
+                f"from:\n{WEBVIEW2_URL}\n\nDetails: {detail}")
+    return ("Pyxel could not open its window.\n\n"
+            "If you downloaded Pyxel, Windows may have blocked its files: delete the "
+            "unzipped folder, right-click the zip > Properties > tick \"Unblock\" > OK, "
+            "and unzip it again.\n\n"
+            f"Details: {detail}")
+
+
 def _safe_streams():
     """A windowed exe has no console (stdout is None), and a redirected one may
     use a legacy codepage that cannot encode the emoji in log messages. Neither
@@ -73,11 +88,11 @@ def main(argv=None):
         # Force Edge WebView2: never fall back to the legacy IE engine
         webview.start(gui="edgechromium", http_server=True)
     except Exception as exc:
-        _message_box(
-            "Pyxel Canvas could not start",
-            "Pyxel needs Microsoft Edge WebView2, which is part of Windows 11 "
-            "and up-to-date Windows 10.\n\nInstall the free \"Evergreen "
-            f"Runtime\" from:\n{WEBVIEW2_URL}\n\nDetails: {exc}")
+        if args.selftest:            # a build check must report, never block on a dialog
+            Path(args.selftest).write_text(json.dumps({"errors": [f"start failed: {exc}"]}),
+                                           encoding="utf-8")
+            return 3
+        _message_box("Pyxel Canvas could not start", _start_failure_help(exc))
         return 1
 
     if args.selftest:

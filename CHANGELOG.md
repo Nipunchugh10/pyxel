@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.1] — 2026-10-06
+
+### Fixed
+- The app could not start when downloaded with a browser: Windows marks
+  downloaded files ("Mark of the Web") and .NET then refused to load the app's
+  own components, showing "Pyxel Canvas could not start". The app now ships a
+  .NET configuration that allows this, and the release check simulates a real
+  browser download.
+- The start-up error message wrongly blamed WebView2; it now reports the real
+  cause and explains how to unblock a download.
+
 ## [1.0.0] — 2026-10-06
 
 First release of the **Pyxel Canvas desktop app** for Windows: download one zip,

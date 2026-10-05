@@ -51,6 +51,8 @@ def build():
          "--distpath", str(DIST), "--workpath", str(ROOT / "build"),
          str(ROOT / "packaging" / "pyxel.spec")],
         env={**os.environ, "PYXEL_VERSION": APP_VERSION})
+    # .NET config: lets the app start when Windows marked its files as downloaded
+    shutil.copy(ROOT / "packaging" / "Pyxel.exe.config", APP_DIR / "Pyxel.exe.config")
     # User-facing documents next to the exe
     readme = (ROOT / "packaging" / "README.txt").read_text(encoding="utf-8")
     (APP_DIR / "README.txt").write_text(readme.replace("{version}", APP_VERSION), encoding="utf-8")
@@ -73,10 +75,17 @@ def package():
 
 
 def verify():
-    """Unzip the release to a fresh folder and run the exe's UI self-test there."""
+    """Unzip the release to a fresh folder exactly as a user's download would be
+    (every file tagged with Mark-of-the-Web, as Explorer does for a zip from a
+    browser) and run the exe's UI self-test there."""
     with tempfile.TemporaryDirectory() as tmp:
         with zipfile.ZipFile(ZIP) as zf:
             zf.extractall(tmp)
+        motw = "[ZoneTransfer]\r\nZoneId=3\r\nHostUrl=https://github.com/\r\n"
+        for f in Path(tmp).rglob("*"):
+            if f.is_file():
+                with open(str(f) + ":Zone.Identifier", "w") as stream:
+                    stream.write(motw)
         exe = Path(tmp) / "Pyxel" / "Pyxel.exe"
         report = Path(tmp) / "selftest.json"
         # Minimal environment: no Python on PATH, no PYTHON* variables
@@ -84,6 +93,10 @@ def verify():
         env["PATH"] = os.pathsep.join([r"C:\Windows\System32", r"C:\Windows"])
         code = subprocess.run([str(exe), "--selftest", str(report)], env=env, cwd=tmp,
                               timeout=900).returncode
+        if not report.exists():
+            print(f"\nFROZEN SELF-TEST: FAIL (exit {code}, the app wrote no report: "
+                  "it could not start)")
+            return False
         result = json.loads(report.read_text(encoding="utf-8"))
         ok = (code == 0 and result.get("welcome") and result.get("backHome")
               and not result.get("errors") and not result["notes"]["katexErrors"]
