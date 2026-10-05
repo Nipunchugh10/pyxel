@@ -1,0 +1,7 @@
+-r requirements.txt
+pytest>=8.0
+pyflakes>=3.0
+nbconvert>=7.0
+ipykernel>=6.0
+# Building the Windows release
+pyinstaller>=6.0
