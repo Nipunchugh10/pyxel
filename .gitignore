@@ -24,3 +24,11 @@ SESSION_STATE.md
 # OS
 .DS_Store
 Thumbs.db
+
+# Local planning
+Improvement_Plan.md
+Release_Plan.md
+
+# Build output
+build/
+dist/

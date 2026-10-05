@@ -11,27 +11,48 @@ This is **not** a collection of 100 disconnected scripts. It is a **visual engin
 ## Features
 
 - **100 fully implemented patterns** across 6 categories
-- **Interactive UI** — category/pattern dropdowns, universal controls (palette, speed, resolution), and pattern-specific sliders
-- **Lazy loading** — only the selected pattern is instantiated, keeping memory low
+- **Interactive UI** — category/pattern dropdowns, universal controls (palette, resolution, GIF frame rate), and pattern-specific sliders
+- **Lazy loading** — a pattern is instantiated only the first time it is selected
 - **8 colour palettes** — Inferno, Ocean Depths, Neon Cyberpunk, Forest, Sunset Blaze, Arctic Aurora, Monochrome, Lava Flow
-- **Export** — save any render as PNG, GIF, or MP4 with one click
+- **Export** — save any render as PNG; export animated GIFs for the 10 time-evolving simulations
 - **Concept Notes** — every pattern includes a "How This Works" explanation with LaTeX-rendered mathematics
 - **Single-notebook architecture** — one `.ipynb` file is the entire user-facing application
 
 ---
 
-## Quick Start
+## Desktop App (Windows): no Python needed
+
+Download **`Pyxel-v1.0.0-win64.zip`** from the [Releases page](https://github.com/Nipunchugh10/pyxel/releases),
+unzip it anywhere and double-click **`Pyxel.exe`**. Pick a pattern, click **Render**, and the image
+appears beside its "How This Works" notes; export PNGs and GIFs to `Pictures\Pyxel`.
+
+- Needs 64-bit Windows 10/11 with the Microsoft Edge **WebView2** runtime (built into Windows 11).
+- The app is not code-signed: if SmartScreen says *"Windows protected your PC"*, click
+  **More info → Run anyway**.
+
+Run it from source with `python visual_engine/app.py`. Build the release yourself with
+`python -m pip install -r requirements-dev.txt` then `python packaging/build_release.py --verify`
+(produces the zip and its SHA-256 in `dist/`, then self-tests the packaged app).
+
+---
+
+## Quick Start (Jupyter notebook)
 
 ```bash
 # Clone
 git clone https://github.com/Nipunchugh10/pyxel.git
 cd pyxel
 
+# Install dependencies (a virtual environment is recommended)
+python -m pip install -r requirements.txt
+
 # Launch
 jupyter lab visual_engine/notebook.ipynb
 ```
 
-Run all cells top-to-bottom. The environment setup cell installs all required libraries automatically. Then use the UI dropdowns to browse and render any pattern.
+Run all cells top-to-bottom. The environment setup cell verifies that the required libraries are installed. Then use the UI dropdowns to browse and render any pattern.
+
+On Windows, `run.bat` / `run.ps1` launch Jupyter Lab from the project's `.venv`.
 
 ---
 
@@ -42,13 +63,12 @@ visual_engine/
 ├── notebook.ipynb               <- Single entry point — run this
 │
 ├── engines/
-│   ├── renderer.py              <- BasePattern ABC (render + get_controls)
+│   ├── renderer.py              <- BasePattern ABC (render + get_controls + control wiring)
 │   ├── color_utils.py           <- 8 preset colour palettes + utilities
-│   ├── animation.py             <- Animation loop helpers
-│   └── camera.py                <- 2D viewport (pan, zoom, meshgrid)
+│   └── animation.py             <- Frame capture for GIF export
 │
 ├── patterns/
-│   ├── __init__.py              <- PATTERNS registry (100 entries) + CATEGORIES
+│   ├── __init__.py              <- PATTERNS registry (100 entries) + CATEGORIES + get_pattern()
 │   ├── fractals.py              <- Geometric & Mathematical (1–20)
 │   ├── nature.py                <- Nature-Inspired (21–40)
 │   ├── abstract.py              <- Abstract & Artistic (41–60)
@@ -56,10 +76,12 @@ visual_engine/
 │   ├── objects3d.py             <- 3D Objects & Sculptures (71–90)
 │   └── scientific.py            <- Scientific & Simulation (91–100)
 │
+├── app.py                       <- Desktop app entry point
+├── desktop/                     <- Desktop backend, notes renderer, web UI (pywebview)
 ├── utils/
-│   ├── export.py                <- PNG / GIF / MP4 export functions
-│   └── physics.py               <- Shared physics helpers
+│   └── export.py                <- PNG / GIF / MP4 export functions
 │
+├── tests/                       <- pytest suite (every pattern, every slider extreme)
 ├── assets/                      <- Textures, fonts, static resources
 ├── shaders/                     <- GLSL shader files
 └── exports/                     <- Rendered outputs (auto-created, gitignored)
@@ -75,7 +97,7 @@ visual_engine/
 |---|---------|-------------|
 | 1 | Mandelbrot Fractal Explorer | Iterative escape-time fractal with zoomable complex-plane viewport |
 | 2 | Julia Set Animator | Fixed-seed Julia sets revealing different fractal shapes per parameter |
-| 3 | Sierpinski Triangle | Chaos-game construction converging to a self-similar gasket |
+| 3 | Sierpinski Triangle | Recursive midpoint subdivision into a self-similar gasket |
 | 4 | Koch Snowflake | Recursive midpoint replacement producing an infinite-perimeter snowflake |
 | 5 | Penrose Tiling | Aperiodic tiling with two rhombus shapes that never repeats |
 | 6 | Voronoi Diagram | Nearest-seed territory partition via cKDTree rasterization |
@@ -196,7 +218,7 @@ visual_engine/
 | 96 | Traffic Flow Simulation | Nagel-Schreckenberg cellular automaton with space-time diagram |
 | 97 | Ecosystem Predator-Prey | Lotka-Volterra RK4 integration + phase portrait |
 | 98 | Ant Colony Optimization | ACO metaheuristic for TSP with pheromone visualization |
-| 99 | Fluid Dynamics (SPH) | Smoothed Particle Hydrodynamics with pressure/viscosity kernels |
+| 99 | Fluid Dynamics (SPH) | Weakly-compressible SPH dam break with CFL-stable time stepping |
 | 100 | Quantum Wave Packet | Split-step Fourier propagation through potential barriers |
 
 ---
@@ -245,9 +267,24 @@ Each pattern class:
 - Implements `render(**kwargs)` — produces the visual output
 - Implements `get_controls()` — returns pattern-specific ipywidgets
 - Supports 8 colour palettes and 3 resolution levels (Low/Medium/High)
+- Optionally implements `animate(**kwargs)` — returns frames for GIF export
+
+---
+
+## Testing
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest
+```
+
+The suite renders every pattern at default, minimum and maximum slider values
+under a time budget, exports frames for every animatable pattern, checks that
+every UI control is actually read by its pattern, and includes regression tests
+for the simulation physics.
 
 ---
 
 ## License
 
-MIT License — feel free to fork, remix, and learn from this notebook.
+MIT License (see [LICENSE](LICENSE)) — feel free to fork, remix, and learn from this project.

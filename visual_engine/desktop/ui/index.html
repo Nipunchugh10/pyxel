@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Pyxel Canvas</title>
+  <link rel="stylesheet" href="vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="app.css">
+  <script src="vendor/katex/katex.min.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <!-- ── Sidebar ───────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <button class="brand" id="home-link" title="Back to the welcome page">
+        <span class="brand-mark">P</span>
+        <span class="brand-text">Pyxel Canvas</span>
+      </button>
+      <nav class="nav" id="nav">
+        <p class="muted pad">Loading patterns…</p>
+      </nav>
+      <footer class="sidebar-footer">
+        <a href="#" id="source-link" class="source-link">Source code&nbsp;↗</a>
+        <span class="version" id="version"></span>
+      </footer>
+    </aside>
+
+    <!-- ── Main area ─────────────────────────────────────────── -->
+    <main class="main">
+      <!-- Welcome page -->
+      <section class="view" id="welcome-view">
+        <div class="welcome">
+          <div class="hero">
+            <h1>Pyxel Canvas</h1>
+            <p class="lead">100 generative 2D &amp; 3D patterns, from fractals and nature
+              simulations to abstract art, retro games, 3D sculptures and physics,
+              rendered live on your PC.</p>
+            <button class="btn primary" id="start-btn">Explore the patterns</button>
+          </div>
+
+          <h2>Features</h2>
+          <div class="features">
+            <div class="feature"><h3>100 patterns</h3><p>Six categories, each pattern with its own live controls.</p></div>
+            <div class="feature"><h3>Your look</h3><p>8 colour palettes and 3 render resolutions.</p></div>
+            <div class="feature"><h3>Export</h3><p>Save any render as PNG; export the 10 simulations as animated GIFs.</p></div>
+            <div class="feature"><h3>Learn how it works</h3><p>Every pattern comes with notes explaining its mathematics and code.</p></div>
+            <div class="feature"><h3>Real science</h3><p>Hydrogen orbitals, fluid dynamics, quantum tunnelling, flocking and more.</p></div>
+            <div class="feature"><h3>Offline &amp; private</h3><p>Everything runs on your computer. No account, no internet needed.</p></div>
+          </div>
+
+          <h2>Categories</h2>
+          <div class="categories" id="category-cards"></div>
+
+          <h2>How to use</h2>
+          <ol class="steps">
+            <li>Pick a category and a pattern from the list on the left.</li>
+            <li>Adjust the palette, resolution and the pattern's own sliders.</li>
+            <li>Click <b>Render</b>. The image appears on the left with its notes on the right.</li>
+            <li>Click <b>Export PNG</b> or, for simulations, <b>Export GIF</b>. Files are saved to <span class="path" id="exports-path">Pictures\Pyxel</span>.</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Pattern page -->
+      <section class="view hidden" id="pattern-view">
+        <header class="pattern-header">
+          <div>
+            <p class="eyebrow" id="pattern-meta"></p>
+            <h1 id="pattern-title"></h1>
+          </div>
+          <div class="toolbar">
+            <label>Palette <select id="palette"></select></label>
+            <label>Resolution <select id="resolution"></select></label>
+            <button class="btn primary" id="render-btn">Render</button>
+          </div>
+        </header>
+        <div class="controls-bar" id="controls-bar">
+          <div class="controls" id="controls"></div>
+          <button class="btn reset-btn" id="reset-btn" title="Put every control back to this pattern's default" disabled>Reset to defaults</button>
+        </div>
+
+        <div class="split">
+          <div class="panel image-panel">
+            <div class="canvas" id="canvas">
+              <p class="placeholder" id="placeholder">Click <b>Render</b> to draw this pattern.</p>
+              <img id="render-img" alt="Rendered pattern" class="hidden">
+              <div class="busy hidden" id="busy"><div class="spinner"></div><span id="busy-text">Rendering…</span></div>
+            </div>
+            <div class="export-bar">
+              <button class="btn" id="png-btn" disabled>Export PNG</button>
+              <button class="btn" id="gif-btn" disabled>Export GIF</button>
+              <label class="fps" id="fps-wrap">FPS <input type="number" id="fps" min="2" max="30" value="12"></label>
+            </div>
+            <p class="status" id="status"></p>
+          </div>
+          <article class="panel notes-panel">
+            <h2 class="notes-title">How This Works</h2>
+            <div class="notes" id="notes"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
