@@ -1,25 +1,41 @@
 """
 Export utilities — save rendered outputs as PNG, GIF, or MP4.
-All files are saved to the visual_engine/exports/ directory.
+Files go to visual_engine/exports/ by default; the desktop app redirects
+them with set_exports_dir().
 """
 
-import os
+import re
 from pathlib import Path
 from datetime import datetime
 
-import numpy as np
 from PIL import Image
 
-# Resolve exports directory relative to this file
+# Resolve exports directory relative to this file (created on first export)
 _EXPORTS_DIR = Path(__file__).resolve().parent.parent / "exports"
-_EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def set_exports_dir(path) -> Path:
+    """Send all future exports to `path`."""
+    global _EXPORTS_DIR
+    _EXPORTS_DIR = Path(path)
+    return _EXPORTS_DIR
+
+
+def get_exports_dir() -> Path:
+    return _EXPORTS_DIR
 
 
 def _timestamped_name(name: str, ext: str) -> Path:
-    """Generate a unique filename with timestamp."""
+    """Unique, filesystem-safe filename: never overwrites an earlier export."""
+    _EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    safe_name = name.replace(" ", "_").lower()
-    return _EXPORTS_DIR / f"{safe_name}_{stamp}.{ext}"
+    safe_name = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") or "pattern"
+    path = _EXPORTS_DIR / f"{safe_name}_{stamp}.{ext}"
+    n = 2
+    while path.exists():
+        path = _EXPORTS_DIR / f"{safe_name}_{stamp}_{n}.{ext}"
+        n += 1
+    return path
 
 
 def export_png(figure, name: str = "pattern") -> str:

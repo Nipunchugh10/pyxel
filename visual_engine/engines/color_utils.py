@@ -3,7 +3,6 @@ Color palette and gradient helpers for Pyxel Canvas patterns.
 """
 
 import numpy as np
-import matplotlib.colors as mcolors
 from matplotlib.colors import LinearSegmentedColormap
 
 
@@ -45,8 +44,27 @@ PALETTES = {
 }
 
 
+# 4-stop accent palettes (background, dark, mid, highlight) used by the
+# 3D-object and scientific patterns, keyed by the same names as PALETTES.
+ACCENT_PALETTES = {
+    "Inferno":        ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
+    "Ocean Depths":   ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
+    "Neon Cyberpunk": ["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
+    "Forest":         ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
+    "Sunset Blaze":   ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
+    "Arctic Aurora":  ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
+    "Monochrome":     ["#111111", "#444444", "#aaaaaa", "#ffffff"],
+    "Lava Flow":      ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
+}
+
+
 class ColorUtils:
     """Utility class for color palette operations."""
+
+    @staticmethod
+    def accent_colors(name: str, default: str = "Inferno") -> list:
+        """Return the 4-stop accent palette for `name`, falling back to `default`."""
+        return list(ACCENT_PALETTES.get(name, ACCENT_PALETTES[default]))
 
     @staticmethod
     def get_palette(name: str) -> list:
@@ -63,14 +81,6 @@ class ColorUtils:
         """Build a matplotlib LinearSegmentedColormap from a named palette."""
         colors = ColorUtils.get_palette(name)
         return LinearSegmentedColormap.from_list(name, colors, N=256)
-
-    @staticmethod
-    def interpolate_color(color_a: str, color_b: str, t: float) -> str:
-        """Linearly interpolate between two hex colors (t in [0, 1])."""
-        a = np.array(mcolors.to_rgb(color_a))
-        b = np.array(mcolors.to_rgb(color_b))
-        mixed = (1 - t) * a + t * b
-        return mcolors.to_hex(mixed)
 
     @staticmethod
     def gradient_array(palette_name: str, n: int) -> np.ndarray:

@@ -4,44 +4,11 @@ Patterns 21-34 are fully implemented; 35-40 remain as stubs awaiting Phase 1 ses
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import matplotlib.collections as mc
 import numpy as np
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from engines.renderer import BasePattern
 from engines.color_utils import ColorUtils
 
-
-class _StubMixin:
-    """Shared stub render logic for not-yet-implemented patterns."""
-    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        fig, ax = plt.subplots(figsize=(6, 6), facecolor="#0f0f0f")
-        ax.set_facecolor("#0f0f0f")
-        rect = patches.FancyBboxPatch((0.1, 0.1), 0.8, 0.8,
-                                       boxstyle="round,pad=0.05",
-                                       linewidth=2, edgecolor="#555",
-                                       facecolor="#1a1a2e")
-        ax.add_patch(rect)
-        ax.text(0.5, 0.55, self.name, ha="center", va="center",
-                fontsize=14, color="#e0e0e0", fontweight="bold",
-                transform=ax.transAxes)
-        ax.text(0.5, 0.42, "\u23f3 Coming Soon", ha="center", va="center",
-                fontsize=11, color="#888", style="italic",
-                transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis("off")
-        plt.tight_layout()
-        plt.show()
-        plt.close(fig)
-
-    def get_controls(self):
-        return []
-
-
-# ── Pattern 21 ────────────────────────────────────────────────────────────────
 
 class CherryBlossomRenderer(BasePattern):
     """Pattern 21 — Cherry Blossom Particle Scene."""
@@ -159,6 +126,13 @@ class ProceduralTreeRenderer(BasePattern):
         seed       = int(kwargs.get("seed", 42))
         rng        = np.random.default_rng(seed)
 
+        # The tree has (b^d - 1) / (b - 1) segments: cap depth to a fixed budget
+        # so high branch counts cannot explode (4 branches x depth 13 = 22M).
+        max_segments = 60_000
+        requested = depth
+        while depth > 1 and (n_branches**depth - 1) // (n_branches - 1) > max_segments:
+            depth -= 1
+
         cmap = ColorUtils.make_colormap(palette)
         fig, ax = self._create_figure(figsize=(8, 9), bg_color="#060d06")
 
@@ -193,8 +167,10 @@ class ProceduralTreeRenderer(BasePattern):
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1.05)
         ax.axis("off")
-        ax.set_title("Procedural Tree Generator", color="#a8e0a8",
-                     fontsize=13, pad=8)
+        title = "Procedural Tree Generator"
+        if depth < requested:
+            title += f"  (depth capped {requested}→{depth})"
+        ax.set_title(title, color="#a8e0a8", fontsize=13, pad=8)
         plt.tight_layout()
         plt.show()
         plt.close(fig)
@@ -429,16 +405,19 @@ class LightningBoltRenderer(BasePattern):
 
         _bolt(start, end, depth, 1.0)
 
-        for p1, p2, intensity in all_segs:
-            lw    = max(0.3, intensity * 2.5)
-            alpha = min(1.0, intensity * 0.9 + 0.1)
-            col   = (0.70 + 0.30 * intensity, 0.80 + 0.20 * intensity, 1.0)
-            # Core bolt
-            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color=col, lw=lw,
-                    alpha=alpha, solid_capstyle="round", zorder=2)
-            # Soft glow halo
-            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color=(0.4, 0.5, 1.0),
-                    lw=lw * 5, alpha=alpha * 0.12, solid_capstyle="round", zorder=1)
+        # Two collections (all glow halos, then all cores) draw exactly what
+        # per-segment lines at zorder 1 / 2 would, without one artist each
+        segs = np.array([[p1, p2] for p1, p2, _ in all_segs])
+        inten = np.array([i for _, _, i in all_segs])
+        lw    = np.maximum(0.3, inten * 2.5)
+        alpha = np.minimum(1.0, inten * 0.9 + 0.1)
+        core  = np.column_stack([0.70 + 0.30 * inten, 0.80 + 0.20 * inten,
+                                 np.ones_like(inten), alpha])
+        glow  = np.column_stack([np.tile([0.4, 0.5, 1.0], (len(inten), 1)), alpha * 0.12])
+        ax.add_collection(mc.LineCollection(segs, colors=glow, linewidths=lw * 5,
+                                            capstyle="round", zorder=1))
+        ax.add_collection(mc.LineCollection(segs, colors=core, linewidths=lw,
+                                            capstyle="round", zorder=2))
 
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)

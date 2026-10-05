@@ -4,39 +4,10 @@ Each class is a stub that will be replaced with full implementations during Phas
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from engines.renderer import BasePattern
+from engines.color_utils import ColorUtils
 
-
-class _StubMixin:
-    """Shared stub render logic."""
-    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        fig, ax = plt.subplots(figsize=(6, 6), facecolor="#0f0f0f")
-        ax.set_facecolor("#0f0f0f")
-        rect = patches.FancyBboxPatch((0.1, 0.1), 0.8, 0.8,
-                                       boxstyle="round,pad=0.05",
-                                       linewidth=2, edgecolor="#555",
-                                       facecolor="#1a1a2e")
-        ax.add_patch(rect)
-        ax.text(0.5, 0.55, self.name, ha="center", va="center",
-                fontsize=14, color="#e0e0e0", fontweight="bold",
-                transform=ax.transAxes)
-        ax.text(0.5, 0.42, "⏳ Coming Soon", ha="center", va="center",
-                fontsize=11, color="#888", style="italic",
-                transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis("off")
-        plt.tight_layout()
-        plt.show()
-        plt.close(fig)
-
-    def get_controls(self):
-        return []
 
 class DNAHelixRenderer(BasePattern):
     """71 — Rotating DNA Helix"""
@@ -46,22 +17,11 @@ class DNAHelixRenderer(BasePattern):
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                n_turns=4, n_points=600, view_elev=20, view_azim=30,
                show_rungs=True, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
         _RES_SCALE = {"Low": 0.6, "Medium": 1.0, "High": 1.4}
         scale = _RES_SCALE.get(resolution, 1.0)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Inferno"])
+        cols = ColorUtils.accent_colors(palette, "Inferno")
 
         N = int(n_points * scale)
         t = np.linspace(0, n_turns * 2 * np.pi, N)
@@ -124,24 +84,13 @@ class KleinBottleRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                n_u=80, n_v=80, alpha=0.75, view_elev=25, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 60, "Medium": 90, "High": 130}
         n_u = _RES.get(resolution, n_u)
         n_v = n_u
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cols = ColorUtils.accent_colors(palette, "Neon Cyberpunk")
         cmap = LinearSegmentedColormap.from_list("kb", cols, N=256)
 
         u = np.linspace(0, 2 * np.pi, n_u)
@@ -191,24 +140,13 @@ class MobiusStripRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
                width=0.6, twist=1, alpha=0.9, view_elev=30, view_azim=60, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 80, "Medium": 160, "High": 320}
         n_u = _RES.get(resolution, 80)
         n_v = 20
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cols = ColorUtils.accent_colors(palette, "Sunset Blaze")
         cmap = LinearSegmentedColormap.from_list("mob", cols, N=256)
 
         u = np.linspace(0, 2 * np.pi, n_u)
@@ -258,24 +196,13 @@ class TorusKnotRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
                p=3, q=2, R=2.0, r=0.5, tube_pts=12, view_elev=30, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
         from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
         _RES = {"Low": 600, "Medium": 1200, "High": 2400}
         N = _RES.get(resolution, 600)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cols = ColorUtils.accent_colors(palette, "Arctic Aurora")
         cmap = LinearSegmentedColormap.from_list("tk", cols, N=256)
 
         t = np.linspace(0, 2 * np.pi, N)
@@ -325,23 +252,12 @@ class GyroidRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
                threshold=0.10, n_grid=40, point_size=4, view_elev=25, view_azim=40, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 30, "Medium": 45, "High": 60}
         n_grid = _RES.get(resolution, n_grid)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cols = ColorUtils.accent_colors(palette, "Ocean Depths")
         cmap = LinearSegmentedColormap.from_list("gy", cols, N=256)
 
         lin = np.linspace(-2 * np.pi, 2 * np.pi, n_grid)
@@ -391,23 +307,12 @@ class RomanescoRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Forest", speed=1.0,
                n_buds=500, n_levels=6, view_elev=55, view_azim=30, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 400, "Medium": 800, "High": 1600}
         n_buds = _RES.get(resolution, n_buds)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Forest"])
+        cols = ColorUtils.accent_colors(palette, "Forest")
         cmap = LinearSegmentedColormap.from_list("rom", cols, N=256)
 
         PHI_G = 2.39996323  # golden angle in radians
@@ -477,24 +382,13 @@ class IcosphereRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
                subdivisions=2, alpha=0.75, view_elev=20, view_azim=30, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 2, "Medium": 3, "High": 4}
         subdivisions = _RES.get(resolution, subdivisions)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cols = ColorUtils.accent_colors(palette, "Ocean Depths")
         cmap = LinearSegmentedColormap.from_list("ico", cols, N=256)
 
         # ── Base icosahedron ──────────────────────────────────────────
@@ -586,24 +480,13 @@ class TrefoilKnotRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                linewidth=2.5, view_elev=30, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from mpl_toolkits.mplot3d.art3d import Line3DCollection
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 600, "Medium": 1200, "High": 2400}
         N = _RES.get(resolution, 600)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cols = ColorUtils.accent_colors(palette, "Neon Cyberpunk")
         cmap = LinearSegmentedColormap.from_list("tf", cols, N=256)
 
         t = np.linspace(0, 2 * np.pi, N)
@@ -653,23 +536,12 @@ class SeashellRenderer(BasePattern):
     def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
                n_turns=3, growth_rate=0.18, tube_scale=0.3, alpha=0.85,
                view_elev=25, view_azim=60, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": (80, 30), "Medium": (140, 50), "High": (220, 80)}
         n_u, n_v = _RES.get(resolution, (80, 30))
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cols = ColorUtils.accent_colors(palette, "Sunset Blaze")
         cmap = LinearSegmentedColormap.from_list("sh", cols, N=256)
 
         # Helicospiral seashell with exponential growth
@@ -726,23 +598,12 @@ class HyperboloidRenderer(BasePattern):
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                a=1.0, c_scale=1.0, t_range=2.0, show_lines=True, alpha=0.65,
                view_elev=20, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": (60, 40), "Medium": (100, 60), "High": (160, 80)}
         n_u, n_t = _RES.get(resolution, (60, 40))
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cols = ColorUtils.accent_colors(palette, "Neon Cyberpunk")
         cmap = LinearSegmentedColormap.from_list("hyp", cols, N=256)
 
         # One-sheeted hyperboloid: x²/a² + y²/a² − z²/c² = 1
@@ -809,23 +670,12 @@ class ParametricVaseRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Lava Flow", speed=1.0,
                style=0, alpha=0.9, view_elev=20, view_azim=30, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": (60, 80), "Medium": (100, 140), "High": (160, 220)}
         n_u, n_z = _RES.get(resolution, (60, 80))
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Lava Flow"])
+        cols = ColorUtils.accent_colors(palette, "Lava Flow")
         cmap = LinearSegmentedColormap.from_list("vase", cols, N=256)
 
         z = np.linspace(0, 1, n_z)
@@ -892,20 +742,9 @@ class CrystalLatticeRenderer(BasePattern):
     def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
                lattice_type=0, show_bonds=True,
                view_elev=25, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cols = ColorUtils.accent_colors(palette, "Arctic Aurora")
         cmap = LinearSegmentedColormap.from_list("cl", cols, N=256)
 
         _RES = {"Low": 3, "Medium": 4, "High": 5}
@@ -1003,24 +842,13 @@ class GeodesicDomeRenderer(BasePattern):
     def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
                frequency=2, show_base=True, alpha=0.55,
                view_elev=30, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 2, "Medium": 3, "High": 4}
         frequency = _RES.get(resolution, frequency)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Ocean Depths"])
+        cols = ColorUtils.accent_colors(palette, "Ocean Depths")
         cmap = LinearSegmentedColormap.from_list("gd", cols, N=256)
 
         # ── Build icosphere (same subdivision as pattern 77) ─────────
@@ -1124,6 +952,49 @@ class GeodesicDomeRenderer(BasePattern):
                         description="view_azim"),
         ]
 
+def _raster_scatter(ax, x, y, rgba, size_pt2, alpha, background):
+    """Draw a dense scatter as one image: what ax.scatter(..., s=size_pt2,
+    alpha=alpha) shows, at a tiny fraction of the cost for millions of points.
+
+    Each marker covers a k x k block of screen pixels (k ~ its diameter) and
+    pixels are alpha-composited in draw order, exactly like the scatter: a
+    point followed by r later points in the same pixel keeps alpha*(1-alpha)^r
+    of its colour, and the background keeps (1-alpha)^count.
+    """
+    import matplotlib.colors as mcolors
+    fig = ax.figure
+    fig.canvas.draw()                                     # settle the layout
+    bbox = ax.get_window_extent()
+    w, h = max(int(bbox.width), 1), max(int(bbox.height), 1)
+    (x0, x1), (y0, y1) = ax.get_xlim(), ax.get_ylim()
+    col = (x - x0) / (x1 - x0) * w
+    row = (y - y0) / (y1 - y0) * h
+    area_px = size_pt2 * (fig.dpi / 72.0) ** 2           # marker area in pixels
+    k = int(np.clip(round(np.sqrt(area_px)), 1, 3))
+    alpha = alpha * min(1.0, area_px / k**2)              # partial pixel coverage
+    offsets = np.arange(k) - (k - 1) / 2
+    cells = []
+    for dy in offsets:
+        for dx in offsets:
+            c = np.clip((col + dx).astype(int), 0, w - 1)
+            r = np.clip((row + dy).astype(int), 0, h - 1)
+            cells.append(r * w + c)
+    n = len(x)
+    cell = np.concatenate(cells)
+    order = np.tile(np.arange(n), k * k)
+    srt = np.lexsort((order, cell))                       # by cell, then draw order
+    cell, idx = cell[srt], order[srt]
+    count = np.bincount(cell, minlength=w * h)
+    start = np.concatenate([[0], np.cumsum(count)[:-1]])
+    later = count[cell] - 1 - (np.arange(len(cell)) - start[cell])
+    weight = alpha * (1.0 - alpha) ** later
+    bg = np.array(mcolors.to_rgb(background))
+    img = np.stack([np.bincount(cell, weight * rgba[idx, ch], w * h) for ch in range(3)], axis=1)
+    img += bg * ((1.0 - alpha) ** count)[:, None]
+    ax.imshow(img.reshape(h, w, 3), origin="lower", extent=(x0, x1, y0, y1),
+              interpolation="nearest", aspect=ax.get_aspect())
+
+
 class CalabiYauRenderer(BasePattern):
     """84 — Calabi-Yau Manifold Slice"""
     name  = "Calabi-Yau Manifold Slice"
@@ -1136,17 +1007,7 @@ class CalabiYauRenderer(BasePattern):
         _RES = {"Low": 80, "Medium": 140, "High": 220}
         M = _RES.get(resolution, 80)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cols = ColorUtils.accent_colors(palette, "Neon Cyberpunk")
         cmap = LinearSegmentedColormap.from_list("cy", cols, N=256)
 
         n_val = max(2, int(n))
@@ -1186,13 +1047,21 @@ class CalabiYauRenderer(BasePattern):
 
         fig, ax = plt.subplots(figsize=(7, 7), facecolor="#030308")
         ax.set_facecolor("#030308")
-        ax.scatter(X, Y, c=cmap(Cn), s=float(point_size),
-                   alpha=0.65, linewidths=0, rasterized=True)
         ax.set_aspect("equal")
         ax.axis("off")
         ax.set_title(f"Calabi-Yau Manifold Slice  (n = {n_val})",
                      color="#aaaaaa", fontsize=11, pad=10)
-        plt.tight_layout()
+        if len(X) <= 400_000:
+            ax.scatter(X, Y, c=cmap(Cn), s=float(point_size),
+                       alpha=0.65, linewidths=0, rasterized=True)
+            plt.tight_layout()
+        else:
+            # Matplotlib draws scatter points one by one (~7 us each; n=8 at
+            # High is 3.1M points), so composite them into an image directly
+            ax.update_datalim(np.column_stack([X, Y]))   # same autoscale
+            ax.autoscale_view()                          # margins as scatter
+            plt.tight_layout()
+            _raster_scatter(ax, X, Y, cmap(Cn), float(point_size), 0.65, "#030308")
         self._fig = fig
         plt.show()
         plt.close(fig)
@@ -1214,7 +1083,6 @@ class SoapBubbleRenderer(BasePattern):
     def render(self, resolution="Low", palette="Ocean Depths", speed=1.0,
                n_bubbles=12, seed=42, alpha=0.35,
                view_elev=20, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
         import colorsys
 
         _RES = {"Low": (18, 14), "Medium": (30, 24), "High": (50, 40)}
@@ -1317,7 +1185,6 @@ class NeuralMeshRenderer(BasePattern):
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                n_layers=5, conn_threshold=0.65, seed=42,
                view_elev=25, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from mpl_toolkits.mplot3d.art3d import Line3DCollection
         from matplotlib.colors import LinearSegmentedColormap
         from scipy.spatial import cKDTree
@@ -1325,17 +1192,7 @@ class NeuralMeshRenderer(BasePattern):
         _RES = {"Low": 1.0, "Medium": 1.5, "High": 2.0}
         scale = _RES.get(resolution, 1.0)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Neon Cyberpunk"])
+        cols = ColorUtils.accent_colors(palette, "Neon Cyberpunk")
         cmap = LinearSegmentedColormap.from_list("nm", cols, N=256)
 
         rng = np.random.default_rng(int(seed))
@@ -1447,24 +1304,13 @@ class TwistedPrismRenderer(BasePattern):
     def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
                n_sides=6, twist_deg=90, taper=0.30, show_floors=True,
                alpha=0.70, view_elev=20, view_azim=30, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from mpl_toolkits.mplot3d.art3d import Poly3DCollection
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 20, "Medium": 40, "High": 70}
         n_floors = _RES.get(resolution, 20)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Sunset Blaze"])
+        cols = ColorUtils.accent_colors(palette, "Sunset Blaze")
         cmap = LinearSegmentedColormap.from_list("tp", cols, N=256)
 
         n_s = max(3, int(n_sides))
@@ -1558,24 +1404,13 @@ class FractalMountainRenderer(BasePattern):
     def render(self, resolution="Low", palette="Forest", speed=1.0,
                roughness=0.60, seed=42, sea_level=0.28, show_sea=True,
                view_elev=35, view_azim=225, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 5, "Medium": 6, "High": 7}
         n_power = _RES.get(resolution, 5)
         N = 2 ** n_power + 1          # 33 / 65 / 129
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Forest"])
+        cols = ColorUtils.accent_colors(palette, "Forest")
         cmap = LinearSegmentedColormap.from_list("fm", cols, N=256)
 
         rng = np.random.default_rng(int(seed))
@@ -1673,24 +1508,13 @@ class VolumetricFogRenderer(BasePattern):
     def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
                n_octaves=4, density_thresh=0.48, seed=42,
                view_elev=20, view_azim=45, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from matplotlib.colors import LinearSegmentedColormap
         from scipy.ndimage import zoom
 
         _RES = {"Low": 22, "Medium": 34, "High": 50}
         N = _RES.get(resolution, 22)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Arctic Aurora"])
+        cols = ColorUtils.accent_colors(palette, "Arctic Aurora")
         cmap = LinearSegmentedColormap.from_list("vf", cols, N=256)
 
         rng  = np.random.default_rng(int(seed))
@@ -1782,24 +1606,13 @@ class StrangeAttractor3DRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Lava Flow", speed=1.0,
                attractor=0, view_elev=20, view_azim=30, **kwargs):
-        from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
         from mpl_toolkits.mplot3d.art3d import Line3DCollection
         from matplotlib.colors import LinearSegmentedColormap
 
         _RES = {"Low": 30_000, "Medium": 60_000, "High": 120_000}
         n_steps = _RES.get(resolution, 30_000)
 
-        PALETTES = {
-            "Inferno":       ["#200060", "#8b0aff", "#ff6b35", "#ffe04b"],
-            "Ocean Depths":  ["#0a1628", "#0066cc", "#00ccff", "#80ffee"],
-            "Neon Cyberpunk":["#0d0221", "#ff006e", "#00f5d4", "#f9c80e"],
-            "Forest":        ["#1a2e1a", "#2d6a2d", "#52b252", "#b8f0b8"],
-            "Sunset Blaze":  ["#1a0505", "#cc2200", "#ff8800", "#ffee44"],
-            "Arctic Aurora": ["#050a14", "#0033aa", "#00ddaa", "#aaffee"],
-            "Monochrome":    ["#111111", "#444444", "#aaaaaa", "#ffffff"],
-            "Lava Flow":     ["#1a0000", "#aa1100", "#ff4400", "#ffcc00"],
-        }
-        cols = PALETTES.get(palette, PALETTES["Lava Flow"])
+        cols = ColorUtils.accent_colors(palette, "Lava Flow")
         cmap = LinearSegmentedColormap.from_list("sa", cols, N=256)
 
         att = int(attractor) % 4

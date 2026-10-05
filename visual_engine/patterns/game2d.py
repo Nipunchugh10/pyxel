@@ -5,39 +5,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from engines.renderer import BasePattern
+from engines.color_utils import ColorUtils
 
-
-class _StubMixin:
-    """Shared stub render logic."""
-    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        fig, ax = plt.subplots(figsize=(6, 6), facecolor="#0f0f0f")
-        ax.set_facecolor("#0f0f0f")
-        rect = patches.FancyBboxPatch((0.1, 0.1), 0.8, 0.8,
-                                       boxstyle="round,pad=0.05",
-                                       linewidth=2, edgecolor="#555",
-                                       facecolor="#1a1a2e")
-        ax.add_patch(rect)
-        ax.text(0.5, 0.55, self.name, ha="center", va="center",
-                fontsize=14, color="#e0e0e0", fontweight="bold",
-                transform=ax.transAxes)
-        ax.text(0.5, 0.42, "Coming Soon", ha="center", va="center",
-                fontsize=11, color="#888", style="italic",
-                transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis("off")
-        plt.tight_layout()
-        plt.show()
-        plt.close(fig)
-
-    def get_controls(self):
-        return []
-
-# ── 61. Maze Generator & Solver ───────────────────────────────────────────────
 
 class MazeRenderer(BasePattern):
     name = "Maze Generator & Solver"
@@ -120,14 +90,14 @@ class MazeRenderer(BasePattern):
         ax.add_patch(patches.Rectangle((C-1, 0), 1, 1, facecolor="#7a1a1a",
                      edgecolor="none", zorder=2))
 
-        for r in range(R + 1):
-            for c in range(C):
-                if wall_h[r][c]:
-                    ax.plot([c, c+1], [R-r, R-r], color="#c8c8d0", lw=lw, zorder=3)
-        for r in range(R):
-            for c in range(C + 1):
-                if wall_v[r][c]:
-                    ax.plot([c, c], [R-r-1, R-r], color="#c8c8d0", lw=lw, zorder=3)
+        # All walls as one LineCollection instead of a line per wall
+        from matplotlib.collections import LineCollection
+        walls = [[(c, R-r), (c+1, R-r)] for r in range(R + 1) for c in range(C)
+                 if wall_h[r][c]]
+        walls += [[(c, R-r-1), (c, R-r)] for r in range(R) for c in range(C + 1)
+                  if wall_v[r][c]]
+        ax.add_collection(LineCollection(walls, colors="#c8c8d0", linewidths=lw,
+                                         capstyle="projecting", zorder=3))
 
         ax.text(0.5, R-0.5, "S", ha="center", va="center",
                 color="white", fontsize=8, fontweight="bold", zorder=4)
@@ -158,7 +128,6 @@ class CellularAutomatonRenderer(BasePattern):
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                grid_size=80, generations=50, density=0.30, seed=0, **kwargs):
         from scipy.ndimage import convolve
-        from engines.color_utils import ColorUtils
         rng = np.random.default_rng(int(seed))
         N = int(grid_size)
         gens = int(generations)
@@ -336,7 +305,6 @@ class BreakoutBrickRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                brick_rows=10, brick_cols=16, style=0, seed=3, **kwargs):
-        from engines.color_utils import ColorUtils
         rng = np.random.default_rng(int(seed))
         R, C = int(brick_rows), int(brick_cols)
         style = int(style) % 4
@@ -433,19 +401,26 @@ class PacManGhostRenderer(BasePattern):
         N = int(maze_size) | 1
         maze = np.ones((N, N), dtype=np.uint8)
 
-        def carve(r, c):
+        # Depth-first backtracker with an explicit stack (no recursion limit).
+        # Each cell shuffles its directions once, on entry, as a recursive
+        # carve would, so the same seed produces the same maze.
+        def enter(r, c):
             maze[r, c] = 0
             ds = [(0,2),(0,-2),(2,0),(-2,0)]
             rng.shuffle(ds)
-            for dr, dc in ds:
+            return (r, c, iter(ds))
+
+        stack = [enter(1, 1)]
+        while stack:
+            r, c, dirs = stack[-1]
+            for dr, dc in dirs:
                 nr, nc = r+dr, c+dc
                 if 0 <= nr < N and 0 <= nc < N and maze[nr, nc] == 1:
                     maze[r+dr//2, c+dc//2] = 0
-                    carve(nr, nc)
-
-        import sys as _sys
-        _sys.setrecursionlimit(max(5000, N*N*2))
-        carve(1, 1)
+                    stack.append(enter(nr, nc))
+                    break
+            else:
+                stack.pop()
 
         open_cells = list(zip(*np.where(maze == 0)))
         pacman_pos = min(open_cells,
@@ -741,7 +716,6 @@ class BulletHellRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                pattern=0, n_bullets=16, n_rings=5, seed=0, **kwargs):
-        from engines.color_utils import ColorUtils
         rng     = np.random.default_rng(int(seed))
         pattern = int(pattern) % 5
         n_b     = int(n_bullets)
@@ -934,9 +908,7 @@ class CardSuitRenderer(BasePattern):
         return blade_x, blade_y, stem_x, stem_y
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
-               layout=0, seed=0, **kwargs):
-        from engines.color_utils import ColorUtils
-        rng    = np.random.default_rng(int(seed))
+               layout=0, **kwargs):
         layout = int(layout) % 3
 
         suit_colors = {
@@ -1043,7 +1015,6 @@ class CardSuitRenderer(BasePattern):
             widgets.Dropdown(
                 options=[("2x2 Grid", 0), ("Tile Mosaic", 1), ("Card Face", 2)],
                 value=0, description="layout"),
-            widgets.IntSlider(value=0, min=0, max=99, description="seed"),
         ]
 
 
@@ -1055,7 +1026,6 @@ class PixelFlagRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                seed=42, design=0, n_colors=3, **kwargs):
-        from engines.color_utils import ColorUtils
         rng    = np.random.default_rng(int(seed))
         design = int(design) % 6
         nc     = max(2, min(int(n_colors), 5))

@@ -4,40 +4,10 @@ Each class is a stub that will be replaced with full implementations during Phas
 """
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
 import numpy as np
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from matplotlib.collections import LineCollection, PolyCollection
 from engines.renderer import BasePattern
 from engines.color_utils import ColorUtils
-
-
-class _StubMixin:
-    """Shared stub render logic."""
-    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        fig, ax = plt.subplots(figsize=(6, 6), facecolor="#0f0f0f")
-        ax.set_facecolor("#0f0f0f")
-        rect = patches.FancyBboxPatch((0.1, 0.1), 0.8, 0.8,
-                                       boxstyle="round,pad=0.05",
-                                       linewidth=2, edgecolor="#555",
-                                       facecolor="#1a1a2e")
-        ax.add_patch(rect)
-        ax.text(0.5, 0.55, self.name, ha="center", va="center",
-                fontsize=14, color="#e0e0e0", fontweight="bold",
-                transform=ax.transAxes)
-        ax.text(0.5, 0.42, "⏳ Coming Soon", ha="center", va="center",
-                fontsize=11, color="#888", style="italic",
-                transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis("off")
-        plt.tight_layout()
-        plt.show()
-        plt.close(fig)
-
-    def get_controls(self):
-        return []
 
 
 class MandelbrotRenderer(BasePattern):
@@ -56,8 +26,6 @@ class MandelbrotRenderer(BasePattern):
                                 description="Center X:", readout_format=".2f"),
             widgets.FloatSlider(value=0.0, min=-1.5, max=1.5, step=0.01,
                                 description="Center Y:", readout_format=".2f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
@@ -116,8 +84,6 @@ class JuliaRenderer(BasePattern):
                                 description="C Imag:", readout_format=".3f"),
             widgets.FloatSlider(value=1.0, min=0.1, max=50.0, step=0.1,
                                 description="Zoom:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
@@ -169,8 +135,6 @@ class SierpinskiRenderer(BasePattern):
                               description="Depth:"),
             widgets.FloatSlider(value=1.5, min=0.2, max=4.0, step=0.1,
                                 description="Line Width:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def _subdivide(self, v0, v1, v2, depth):
@@ -199,11 +163,10 @@ class SierpinskiRenderer(BasePattern):
         colors = ColorUtils.gradient_array(palette, len(triangles))
 
         fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
-        for idx, tri in enumerate(triangles):
-            polygon = plt.Polygon(tri, closed=True, fill=True,
-                                  facecolor=colors[idx],
-                                  edgecolor=(1, 1, 1, 0.15), linewidth=lw * 0.3)
-            ax.add_patch(polygon)
+        # One PolyCollection instead of 3^depth separate patches
+        ax.add_collection(PolyCollection(
+            [np.asarray(tri) for tri in triangles], facecolors=colors,
+            edgecolors=(1, 1, 1, 0.15), linewidths=lw * 0.3))
 
         ax.set_xlim(-0.05, 1.05)
         ax.set_ylim(-0.05, 0.95)
@@ -228,8 +191,6 @@ class KochRenderer(BasePattern):
                               description="Iterations:"),
             widgets.FloatSlider(value=2.0, min=0.3, max=5.0, step=0.1,
                                 description="Line Width:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def _koch_points(self, p1, p2, depth):
@@ -276,10 +237,10 @@ class KochRenderer(BasePattern):
         colors = ColorUtils.gradient_array(palette, n_seg)
 
         fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
-        for i in range(n_seg):
-            ax.plot([pts[i, 0], pts[i + 1, 0]],
-                    [pts[i, 1], pts[i + 1, 1]],
-                    color=colors[i], linewidth=lw, solid_capstyle="round")
+        # One LineCollection instead of 3 * 4^depth separate lines
+        segments = np.stack([pts[:-1], pts[1:]], axis=1)
+        ax.add_collection(LineCollection(segments, colors=colors,
+                                         linewidths=lw, capstyle="round"))
 
         ax.set_aspect("equal")
         margin = 0.1
@@ -305,8 +266,6 @@ class PenroseRenderer(BasePattern):
                               description="Generations:"),
             widgets.FloatSlider(value=0.5, min=0.1, max=3.0, step=0.1,
                                 description="Line Width:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def _deflate(self, triangles, generation):
@@ -356,12 +315,11 @@ class PenroseRenderer(BasePattern):
         color_thick = palette_colors[6]
 
         fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
-        for color, A, B, C in triangles:
-            fc = color_thick if color == 1 else color_thin
-            tri = plt.Polygon([A, B, C], closed=True, fill=True,
-                              facecolor=fc, edgecolor=(1, 1, 1, 0.12),
-                              linewidth=lw)
-            ax.add_patch(tri)
+        # One PolyCollection instead of a patch per triangle
+        ax.add_collection(PolyCollection(
+            [np.array([A, B, C]) for _, A, B, C in triangles],
+            facecolors=[color_thick if c == 1 else color_thin for c, *_ in triangles],
+            edgecolors=(1, 1, 1, 0.12), linewidths=lw))
 
         ax.set_xlim(-1.3, 1.3)
         ax.set_ylim(-1.3, 1.3)
@@ -439,8 +397,6 @@ class FibonacciRenderer(BasePattern):
             widgets.FloatSlider(value=3.0, min=0.5, max=10.0, step=0.5,
                                 description="Point Size:", readout_format=".1f"),
             widgets.Checkbox(value=False, description="Show Lines"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
@@ -485,12 +441,9 @@ class DragonCurveRenderer(BasePattern):
                               description="Iterations:"),
             widgets.FloatSlider(value=1.0, min=0.2, max=3.0, step=0.1,
                                 description="Line Width:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        from matplotlib.collections import LineCollection
         iterations = int(kwargs.get("iterations", 12))
         lw = float(kwargs.get("line_width", 1.0))
 
@@ -542,8 +495,6 @@ class HilbertCurveRenderer(BasePattern):
                               description="Order:"),
             widgets.FloatSlider(value=1.0, min=0.2, max=3.0, step=0.1,
                                 description="Line Width:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def _hilbert_xy(self, order: int) -> np.ndarray:
@@ -571,7 +522,6 @@ class HilbertCurveRenderer(BasePattern):
         return coords
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        from matplotlib.collections import LineCollection
         order = int(kwargs.get("order", 5))
         lw = float(kwargs.get("line_width", 1.0))
 
@@ -609,8 +559,6 @@ class LSystemTreeRenderer(BasePattern):
                                 description="Angle:", readout_format=".0f"),
             widgets.FloatSlider(value=5.0, min=1.0, max=15.0, step=0.5,
                                 description="Branch Len:", readout_format=".1f"),
-            widgets.IntSlider(value=42, min=0, max=999,
-                              description="Seed:"),
         ]
 
     def _expand(self, n: int) -> str:
@@ -626,7 +574,6 @@ class LSystemTreeRenderer(BasePattern):
         return s
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        from matplotlib.collections import LineCollection
         iterations = int(kwargs.get("iterations", 5))
         angle_deg = float(kwargs.get("angle", 25.0))
         branch_len = float(kwargs.get("branch_len", 5.0))
@@ -843,7 +790,6 @@ class LissajousRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
         from math import gcd
-        from matplotlib.collections import LineCollection
 
         a     = int(kwargs.get("freq_a",    3))
         b     = int(kwargs.get("freq_b",    4))
@@ -899,7 +845,6 @@ class RoseCurvesRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
         from math import gcd
-        from matplotlib.collections import LineCollection
 
         p     = int(kwargs.get("numerator",   5))
         q     = int(kwargs.get("denominator", 3))
@@ -957,7 +902,6 @@ class LorenzAttractorRenderer(BasePattern):
         ]
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        from matplotlib.collections import LineCollection
 
         sigma = float(kwargs.get("sigma",  10.0))
         rho   = float(kwargs.get("rho",    28.0))
@@ -1125,7 +1069,6 @@ class HypocycloidRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
         from math import gcd
-        from matplotlib.collections import LineCollection
 
         R    = float(kwargs.get("r_(fixed)", 5.0))
         r    = float(kwargs.get("r_(roll)",  3.0))
@@ -1202,6 +1145,13 @@ class TruchetRenderer(BasePattern):
 
         fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
 
+        # Quarter-circle (radius 1/2) polylines, one per (centre, start angle)
+        quarter = np.linspace(0.0, np.pi / 2, 24)
+        def arc(cx, cy, start_deg):
+            t = np.radians(start_deg) + quarter
+            return np.column_stack([cx + 0.5 * np.cos(t), cy + 0.5 * np.sin(t)])
+
+        arcs, arc_cols, diags, diag_cols = [], [], [], []
         for row in range(grid_n):
             for col in range(grid_n):
                 x0     = float(col)
@@ -1213,24 +1163,22 @@ class TruchetRenderer(BasePattern):
 
                 if use_arcs:
                     if orient == 0:
-                        arc1 = patches.Arc((x0, y0),       1.0, 1.0,
-                                           theta1=0,   theta2=90,  color=color, linewidth=lw)
-                        arc2 = patches.Arc((x0+1, y0+1), 1.0, 1.0,
-                                           theta1=180, theta2=270, color=color, linewidth=lw)
+                        arcs += [arc(x0, y0, 0), arc(x0+1, y0+1, 180)]
                     else:
-                        arc1 = patches.Arc((x0+1, y0),   1.0, 1.0,
-                                           theta1=90,  theta2=180, color=color, linewidth=lw)
-                        arc2 = patches.Arc((x0, y0+1),   1.0, 1.0,
-                                           theta1=270, theta2=360, color=color, linewidth=lw)
-                    ax.add_patch(arc1)
-                    ax.add_patch(arc2)
+                        arcs += [arc(x0+1, y0, 90), arc(x0, y0+1, 270)]
+                    arc_cols += [color, color]
                 else:
-                    if orient == 0:
-                        ax.plot([x0, x0+1], [y0, y0+1],
-                                color=color, linewidth=lw, solid_capstyle="round")
-                    else:
-                        ax.plot([x0+1, x0], [y0, y0+1],
-                                color=color, linewidth=lw, solid_capstyle="round")
+                    diags.append([(x0, y0), (x0+1, y0+1)] if orient == 0
+                                 else [(x0+1, y0), (x0, y0+1)])
+                    diag_cols.append(color)
+
+        # Same layering as Arc patches (zorder 1) under lines (zorder 2)
+        if arcs:
+            ax.add_collection(LineCollection(arcs, colors=arc_cols, linewidths=lw,
+                                             zorder=1))
+        if diags:
+            ax.add_collection(LineCollection(diags, colors=diag_cols, linewidths=lw,
+                                             capstyle="round", zorder=2))
 
         ax.set_xlim(0, grid_n)
         ax.set_ylim(0, grid_n)
@@ -1300,7 +1248,6 @@ class HexGridRenderer(BasePattern):
         centers = np.array([(h[0], h[1]) for h in hex_data])
         qs      = np.array([h[2] for h in hex_data])
         ss      = np.array([h[3] for h in hex_data])
-        rs      = np.array([h[4] for h in hex_data])
 
         if coloring == "Distance":
             dist = np.hypot(centers[:, 0], centers[:, 1])
@@ -1309,19 +1256,17 @@ class HexGridRenderer(BasePattern):
             angle = np.arctan2(centers[:, 1], centers[:, 0])
             t = (angle + np.pi) / (2 * np.pi)
         elif coloring == "Checkerboard":
-            t = ((qs + ss + rs) % 3) / 2.0
+            # q + s + r == 0 always; (q - s) mod 3 is the proper 3-colouring
+            t = ((qs - ss) % 3) / 2.0
         else:  # Random
             t = rng.random(len(hex_data))
 
         fig, ax = self._create_figure(figsize=(8, 8), dpi=100)
-        for i, (cx, cy, _, _, _) in enumerate(hex_data):
-            corners = self._hex_corners(cx, cy, size * 0.97)
-            color   = cmap(t[i])
-            polygon = plt.Polygon(corners, closed=True, fill=True,
-                                  facecolor=color,
-                                  edgecolor=(1.0, 1.0, 1.0, edge_alpha),
-                                  linewidth=0.5)
-            ax.add_patch(polygon)
+        # One PolyCollection instead of a patch per cell
+        ax.add_collection(PolyCollection(
+            [self._hex_corners(cx, cy, size * 0.97) for cx, cy, *_ in hex_data],
+            facecolors=cmap(t), edgecolors=(1.0, 1.0, 1.0, edge_alpha),
+            linewidths=0.5))
 
         margin = size * 2
         ax.set_xlim(centers[:, 0].min() - margin, centers[:, 0].max() + margin)
@@ -1359,7 +1304,6 @@ class SpirographRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
         from math import gcd
-        from matplotlib.collections import LineCollection
 
         R_teeth   = int(kwargs.get("teeth_out", 7))
         r_teeth   = int(kwargs.get("teeth_in",  3))
@@ -1481,7 +1425,6 @@ class ParametricCurveRenderer(BasePattern):
         return np.cos(t), np.sin(t)
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        from matplotlib.collections import LineCollection
 
         name  = str(kwargs.get("curve", "Butterfly"))
         n_pts = int(kwargs.get("points", 5000))

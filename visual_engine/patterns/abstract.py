@@ -6,43 +6,11 @@ All 60 patterns fully implemented.
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from engines.renderer import BasePattern
+from engines.color_utils import ColorUtils
 
 
 # ── Stub mixin for patterns 48–60 ─────────────────────────────────────────────
-
-class _StubMixin:
-    """Shared stub render logic for not-yet-implemented patterns."""
-    def render(self, resolution="Low", palette="Inferno", speed=1.0, **kwargs):
-        fig, ax = plt.subplots(figsize=(6, 6), facecolor="#0f0f0f")
-        ax.set_facecolor("#0f0f0f")
-        rect = patches.FancyBboxPatch((0.1, 0.1), 0.8, 0.8,
-                                       boxstyle="round,pad=0.05",
-                                       linewidth=2, edgecolor="#555",
-                                       facecolor="#1a1a2e")
-        ax.add_patch(rect)
-        ax.text(0.5, 0.55, self.name, ha="center", va="center",
-                fontsize=14, color="#e0e0e0", fontweight="bold",
-                transform=ax.transAxes)
-        ax.text(0.5, 0.42, "Coming Soon", ha="center", va="center",
-                fontsize=11, color="#888", style="italic",
-                transform=ax.transAxes)
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
-        ax.axis("off")
-        plt.tight_layout()
-        plt.show()
-        plt.close(fig)
-
-    def get_controls(self):
-        return []
-
-
-
-# ── 41. Generative Mondrian ────────────────────────────────────────────────────
 
 class MondrianRenderer(BasePattern):
     name = "Generative Mondrian"
@@ -121,7 +89,6 @@ class PerlinNoiseRenderer(BasePattern):
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                octaves=6, scale=4, seed=0, **kwargs):
         from scipy.ndimage import zoom as nd_zoom
-        from engines.color_utils import ColorUtils
 
         res = self._resolve_resolution(resolution)
         rng = np.random.default_rng(int(seed))
@@ -181,7 +148,6 @@ class MandalaRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
                symmetry=8, rings=5, seed=42, **kwargs):
-        from engines.color_utils import ColorUtils
 
         rng = np.random.default_rng(int(seed))
         n = int(symmetry)
@@ -259,7 +225,6 @@ class StainedGlassRenderer(BasePattern):
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                n_cells=40, seed=7, border_width=3, **kwargs):
         from scipy.spatial import cKDTree
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         res = self._resolve_resolution(resolution)
@@ -416,8 +381,7 @@ class WatercolorRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
                n_layers=8, n_blobs=12, blur_sigma=30, seed=17, **kwargs):
-        from scipy.ndimage import gaussian_filter
-        from engines.color_utils import ColorUtils
+        from scipy.ndimage import gaussian_filter, zoom
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
@@ -426,8 +390,14 @@ class WatercolorRenderer(BasePattern):
         # Cap sigma so the Gaussian kernel stays bounded at all resolutions
         sigma = min(float(blur_sigma) * res / 256.0, res * 0.10)
 
-        # Coordinate grid allocated once; reused for every ellipse
-        yy, xx = np.mgrid[0:res, 0:res]
+        # The mask is blurred by sigma (up to ~100 px), which erases detail
+        # finer than a few pixels, so build and blur it on a grid coarser by a
+        # power-of-two factor f (keeping the coarse sigma >= 8 px), then
+        # upsample. Pixel centres of the coarse grid in full-resolution units:
+        f = 2 ** int(np.log2(max(sigma / 8.0, 1.0)))
+        low = res // f
+        centres = (np.arange(low) + 0.5) * f - 0.5
+        xx, yy = np.meshgrid(centres, centres)
 
         # RGBA canvas — white paper
         canvas = np.ones((res, res, 4), dtype=float)
@@ -439,7 +409,7 @@ class WatercolorRenderer(BasePattern):
             )
 
             # Random rotated ellipses build the blob mask
-            mask = np.zeros((res, res), dtype=float)
+            mask = np.zeros((low, low), dtype=float)
             for _ in range(int(n_blobs)):
                 cx = rng.integers(0, res)
                 cy = rng.integers(0, res)
@@ -448,11 +418,19 @@ class WatercolorRenderer(BasePattern):
                 ry = rng.uniform(0.5, 1.8) * r
                 angle = rng.uniform(0, np.pi)
                 ca, sa = np.cos(angle), np.sin(angle)
-                xr = ca * (xx - cx) + sa * (yy - cy)
-                yr = -sa * (xx - cx) + ca * (yy - cy)
-                mask[(xr / rx) ** 2 + (yr / ry) ** 2 < 1.0] += 1.0
+                # Evaluate only inside the ellipse's bounding box
+                ext = max(rx, ry) + f
+                i0, i1 = np.searchsorted(centres, [cy - ext, cy + ext])
+                j0, j1 = np.searchsorted(centres, [cx - ext, cx + ext])
+                dx = xx[i0:i1, j0:j1] - cx
+                dy = yy[i0:i1, j0:j1] - cy
+                xr = ca * dx + sa * dy
+                yr = -sa * dx + ca * dy
+                mask[i0:i1, j0:j1][(xr / rx) ** 2 + (yr / ry) ** 2 < 1.0] += 1.0
 
-            mask = gaussian_filter(mask, sigma=sigma, truncate=2.5)
+            mask = gaussian_filter(mask, sigma=sigma / f, truncate=2.5)
+            if f > 1:
+                mask = zoom(mask, f, order=1, mode="nearest", grid_mode=True)
             peak = mask.max()
             if peak > 0:
                 mask /= peak
@@ -498,7 +476,6 @@ class GlitchArtRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                n_slices=40, shift_max=80, channel_shift=15, seed=5, **kwargs):
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
@@ -581,7 +558,6 @@ class IsometricCityRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                grid_size=10, max_height=8, seed=7, **kwargs):
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
@@ -791,7 +767,6 @@ class TieDyeRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
                n_centers=6, freq=8.0, twist=1.5, seed=42, **kwargs):
-        from engines.color_utils import ColorUtils
 
         rng = np.random.default_rng(int(seed))
         res = self._resolve_resolution(resolution)
@@ -853,7 +828,6 @@ class GeometricCollageRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Neon Cyberpunk", speed=1.0,
                n_shapes=70, alpha=0.72, seed=3, **kwargs):
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
@@ -944,7 +918,6 @@ class PixelSortingRenderer(BasePattern):
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                threshold=0.30, sort_mode=0, vertical=0, seed=9, **kwargs):
         from scipy.ndimage import zoom as nd_zoom
-        from engines.color_utils import ColorUtils
 
         rng = np.random.default_rng(int(seed))
         res = self._resolve_resolution(resolution)
@@ -1052,7 +1025,6 @@ class AsciiArtRenderer(BasePattern):
     def render(self, resolution="Low", palette="Monochrome", speed=1.0,
                cols=60, seed=22, invert=0, **kwargs):
         from scipy.ndimage import zoom as nd_zoom
-        from engines.color_utils import ColorUtils
 
         rng = np.random.default_rng(int(seed))
         ncols = int(cols)
@@ -1090,6 +1062,8 @@ class AsciiArtRenderer(BasePattern):
             for ci in range(ncols):
                 v = field[ri, ci]
                 char = ramp[min(int(v * rlen), rlen - 1)]
+                if char == " ":
+                    continue        # invisible: skip the text artist
                 ax.text(ci + 0.5, nrows - ri - 0.5, char,
                         ha="center", va="center",
                         fontsize=6.5, color=rgba[ri, ci, :3],
@@ -1118,7 +1092,6 @@ class KandinskyRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                n_elements=65, style=0, seed=0, **kwargs):
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
@@ -1249,7 +1222,6 @@ class ZentangleRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Monochrome", speed=1.0,
                grid_size=7, n_patterns=6, seed=33, **kwargs):
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
@@ -1458,7 +1430,6 @@ class MosaicTileRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Arctic Aurora", speed=1.0,
                tile_size=20, grout_width=3, color_mode=0, seed=7, **kwargs):
-        from engines.color_utils import ColorUtils
         from scipy.ndimage import zoom as nd_zoom
         import matplotlib.colors as mcolors
 
@@ -1544,7 +1515,6 @@ class ImpressionistDotsRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Sunset Blaze", speed=1.0,
                n_dots=4000, dot_size=8.0, jitter=0.008, seed=17, **kwargs):
-        from engines.color_utils import ColorUtils
         from scipy.ndimage import zoom as nd_zoom
 
         rng = np.random.default_rng(int(seed))
@@ -1623,7 +1593,6 @@ class CubistRenderer(BasePattern):
                n_facets=120, line_width=0.8, seed=5, **kwargs):
         from scipy.spatial import Delaunay
         from scipy.ndimage import zoom as nd_zoom
-        from engines.color_utils import ColorUtils
 
         rng = np.random.default_rng(int(seed))
         cmap = ColorUtils.make_colormap(palette)
@@ -1693,7 +1662,6 @@ class AbstractDripRenderer(BasePattern):
 
     def render(self, resolution="Low", palette="Inferno", speed=1.0,
                n_drips=30, drip_width=3.0, gravity=0.02, seed=0, **kwargs):
-        from engines.color_utils import ColorUtils
         import matplotlib.colors as mcolors
 
         rng = np.random.default_rng(int(seed))
